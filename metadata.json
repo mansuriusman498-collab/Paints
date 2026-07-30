@@ -1,0 +1,6 @@
+{
+  "name": "Mansuri Paints",
+  "description": "Luxury Painting Services, Paint Calculator, Painter Booking & Quotation App",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
