@@ -21,13 +21,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material3.Divider
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -47,6 +50,7 @@ import com.example.ui.components.LuxuryCard
 import com.example.ui.components.LuxuryGoldButton
 import com.example.ui.components.LuxuryOutlinedButton
 import com.example.ui.theme.CardBorderDark
+import com.example.ui.theme.CardDark
 import com.example.ui.theme.GoldContainer
 import com.example.ui.theme.GoldMetallic
 import com.example.ui.theme.GoldPrimary
@@ -66,6 +70,10 @@ fun LoginScreen(
     var otpInput by remember { mutableStateOf("") }
     var isOtpSent by remember { mutableStateOf(false) }
 
+    var showForgotDialog by remember { mutableStateOf(false) }
+    var forgotPhoneInput by remember { mutableStateOf("") }
+    var forgotSentMessage by remember { mutableStateOf("") }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = OnyxBlack
@@ -79,7 +87,7 @@ fun LoginScreen(
         ) {
             Box(
                 modifier = Modifier
-                    .size(100.dp)
+                    .size(90.dp)
                     .clip(CircleShape)
                     .border(2.dp, GoldPrimary, CircleShape)
             ) {
@@ -90,7 +98,7 @@ fun LoginScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Text(
                 text = "Welcome to Mansuri Paints",
@@ -106,7 +114,7 @@ fun LoginScreen(
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             LuxuryCard {
                 Column {
@@ -167,7 +175,7 @@ fun LoginScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     if (!isOtpSent) {
                         LuxuryGoldButton(
@@ -186,25 +194,32 @@ fun LoginScreen(
                             }
                         )
                     }
+
+                    TextButton(
+                        onClick = { showForgotDialog = true },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("Forgot Login Details?", color = GoldPrimary, fontSize = 12.sp)
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Divider(modifier = Modifier.weight(1f), color = CardBorderDark)
+                HorizontalDivider(modifier = Modifier.weight(1f), color = CardBorderDark)
                 Text(
                     text = "  OR  ",
                     style = MaterialTheme.typography.labelSmall,
                     color = PureWhite.copy(alpha = 0.5f)
                 )
-                Divider(modifier = Modifier.weight(1f), color = CardBorderDark)
+                HorizontalDivider(modifier = Modifier.weight(1f), color = CardBorderDark)
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             LuxuryOutlinedButton(
                 text = "Sign in with Google",
@@ -220,12 +235,12 @@ fun LoginScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 LuxuryOutlinedButton(
-                    text = "New User? Sign Up",
+                    text = "New User? Register",
                     onClick = onNavigateToSignUp,
                     modifier = Modifier.weight(1f)
                 )
                 LuxuryOutlinedButton(
-                    text = "Admin Portal Login",
+                    text = "Admin Login",
                     onClick = onNavigateToAdminLogin,
                     modifier = Modifier.weight(1f)
                 )
@@ -236,6 +251,45 @@ fun LoginScreen(
             LuxuryOutlinedButton(
                 text = "Continue as Guest",
                 onClick = onSkip
+            )
+        }
+
+        // Forgot Login Dialog
+        if (showForgotDialog) {
+            AlertDialog(
+                onDismissRequest = { showForgotDialog = false },
+                containerColor = CardDark,
+                title = { Text("Reset Login / Recover Account", color = GoldPrimary) },
+                text = {
+                    Column {
+                        Text("Enter your registered mobile number or email to receive a login recovery OTP link:", color = PureWhite, fontSize = 13.sp)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = forgotPhoneInput,
+                            onValueChange = { forgotPhoneInput = it },
+                            label = { Text("Mobile Number or Email", color = PureWhite.copy(alpha = 0.7f)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GoldPrimary, unfocusedBorderColor = CardBorderDark)
+                        )
+                        if (forgotSentMessage.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(forgotSentMessage, color = Color(0xFF4CAF50), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                },
+                confirmButton = {
+                    LuxuryGoldButton(
+                        text = "SEND RECOVERY CODE",
+                        onClick = {
+                            forgotSentMessage = "Recovery code sent via SMS & Email to $forgotPhoneInput"
+                        }
+                    )
+                },
+                dismissButton = {
+                    TextButton(onClick = { showForgotDialog = false }) {
+                        Text("CLOSE", color = PureWhite)
+                    }
+                }
             )
         }
     }

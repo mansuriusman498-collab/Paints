@@ -24,15 +24,89 @@ data class PaintCostEstimate(
     val estimatedDays: Int
 )
 
+data class CustomerAddress(
+    val id: String,
+    val label: String = "Home", // Home, Office, Parents
+    val houseNo: String = "",
+    val buildingName: String = "",
+    val street: String = "",
+    val landmark: String = "",
+    val city: String = "Ahmedabad",
+    val state: String = "Gujarat",
+    val pincode: String = "380001",
+    val latitude: Double = 23.0225,
+    val longitude: Double = 72.5714,
+    val isDefault: Boolean = true
+) {
+    fun fullAddressString(): String {
+        val parts = listOf(houseNo, buildingName, street, landmark, city, state, pincode).filter { it.isNotBlank() }
+        return if (parts.isNotEmpty()) parts.joinToString(", ") else "Flat 402, Golden Towers, Station Road, Ahmedabad, Gujarat 380001"
+    }
+}
+
 data class UserProfile(
+    val id: String = "u1",
     val name: String = "Mansuri Client",
     val phone: String = "+91 98765 43210",
     val email: String = "mansuriusman498@gmail.com",
-    val address: String = "Flat 402, Golden Towers, Station Road",
+    val photoUrl: String = "",
+    val houseNo: String = "Flat 402",
+    val buildingName: String = "Golden Towers",
+    val street: String = "Station Road",
+    val landmark: String = "Near Central Mall",
+    val city: String = "Ahmedabad",
+    val state: String = "Gujarat",
+    val pincode: String = "380001",
+    val addresses: List<CustomerAddress> = listOf(
+        CustomerAddress(
+            id = "addr_1",
+            label = "Home",
+            houseNo = "Flat 402",
+            buildingName = "Golden Towers",
+            street = "Station Road",
+            landmark = "Near Central Mall",
+            city = "Ahmedabad",
+            state = "Gujarat",
+            pincode = "380001",
+            isDefault = true
+        ),
+        CustomerAddress(
+            id = "addr_2",
+            label = "Office",
+            houseNo = "Suite 701",
+            buildingName = "Apex Commercial Hub",
+            street = "SG Highway",
+            landmark = "Opp. YMCA Club",
+            city = "Ahmedabad",
+            state = "Gujarat",
+            pincode = "380015",
+            isDefault = false
+        )
+    ),
     val isLoggedIn: Boolean = true,
     val isGoogleUser: Boolean = false,
     val isAdmin: Boolean = false,
-    val role: String = if (isAdmin) "admin" else "customer"
+    val isBlocked: Boolean = false,
+    val role: String = if (isAdmin) "admin" else "customer" // customer, admin, painter
+) {
+    val fullAddress: String
+        get() = "$houseNo, $buildingName, $street, $landmark, $city, $state $pincode"
+}
+
+data class PaymentConfig(
+    val upiId: String = "mansuripaints@upi",
+    val qrCodeUrl: String = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=7843099068@upi&pn=Mansuri%20Paints",
+    val lastUpdated: Long = System.currentTimeMillis()
+)
+
+data class NotificationItem(
+    val id: String,
+    val title: String,
+    val message: String,
+    val timeAgo: String = "Just now",
+    val timestamp: Long = System.currentTimeMillis(),
+    val isRead: Boolean = false,
+    val bookingId: String = ""
 )
 
 object DefaultServices {
@@ -66,7 +140,7 @@ object DefaultServices {
         ),
         PaintService(
             id = "s4",
-            title = "Putty & Wall Primer",
+            title = "Putty Work",
             subtitle = "Flawless Base Preparation & Leveling",
             pricePerSqFt = 12.0,
             description = "Premium white acrylic wall putty application with double coat sanding and primer application for mirror-smooth walls.",
@@ -102,7 +176,7 @@ object DefaultServices {
         ),
         PaintService(
             id = "s8",
-            title = "Interior Painting Complete",
+            title = "Interior Painting",
             subtitle = "End-to-End Home Makeover Package",
             pricePerSqFt = 22.0,
             description = "Complete interior transformation including furniture covering, wall repair, putty, primer, and double coat finish.",

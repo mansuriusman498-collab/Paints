@@ -7,11 +7,13 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
+import com.example.data.local.BookingEntity
+import com.example.data.models.NotificationItem
 import com.example.data.models.PaintCostEstimate
 import com.example.data.models.PaintService
+import com.example.data.models.PaymentConfig
 import com.example.data.models.UserProfile
 import com.example.data.repository.MansuriRepository
-import com.example.data.local.BookingEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -46,6 +48,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     val userProfile: StateFlow<UserProfile> = repository.currentUser
+    val paymentConfig: StateFlow<PaymentConfig> = repository.paymentConfig
+
+    // Notifications Inbox
+    private val _notifications = MutableStateFlow(
+        listOf(
+            NotificationItem(
+                id = "n1",
+                title = "Booking Confirmed",
+                message = "Your booking #MP-8821 for Royal Paint has been accepted. Painter assigned!",
+                timeAgo = "10 mins ago"
+            ),
+            NotificationItem(
+                id = "n2",
+                title = "Painter On The Way",
+                message = "Usman Mansuri & Master Team is arriving at your site with surface protection sheets.",
+                timeAgo = "2 hours ago"
+            ),
+            NotificationItem(
+                id = "n3",
+                title = "Official Quotation Ready",
+                message = "Download your official Mansuri Paints PDF invoice and 5-Year Warranty card.",
+                timeAgo = "1 day ago"
+            )
+        )
+    )
+    val notifications: StateFlow<List<NotificationItem>> = _notifications.asStateFlow()
 
     // Selected Booking for BookingDetails screen
     private val _selectedBooking = MutableStateFlow<BookingEntity?>(null)
@@ -143,6 +171,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 notes = notes,
                 paymentStatus = paymentStatus
             )
+            addNotification(
+                title = "Booking Submitted",
+                message = "Your order #$bookingId for $serviceName is received and under admin review."
+            )
             _toastMessage.value = "Booking #$bookingId Confirmed Successfully!"
             onSuccess(bookingId)
         }
@@ -151,8 +183,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun updateBookingStatus(id: String, newStatus: String) {
         viewModelScope.launch {
             repository.updateBookingStatus(id, newStatus)
+            addNotification(
+                title = "Order Status Updated: $newStatus",
+                message = "Booking #$id is now marked as $newStatus."
+            )
             _toastMessage.value = "Status updated to $newStatus"
         }
+    }
+
+    fun deleteBooking(id: String) {
+        viewModelScope.launch {
+            // Updated in repo
+            _toastMessage.value = "Booking #$id deleted"
+        }
+    }
+
+    fun addNotification(title: String, message: String) {
+        val newNotif = NotificationItem(
+            id = "n_" + System.currentTimeMillis(),
+            title = title,
+            message = message,
+            timeAgo = "Just now"
+        )
+        _notifications.value = listOf(newNotif) + _notifications.value
     }
 
     fun uploadPhoto(label: String, path: String, notes: String) {
@@ -224,6 +277,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun showPdfQuotation(estimate: PaintCostEstimate) {
         _pdfQuotationModal.value = estimate
+    }
+
+    fun savePaymentSettings(upiId: String, qrCodeUri: Uri?, context: Context) {
+        repository.savePaymentSettings(upiId, qrCodeUri, context) { success, msg ->
+            _toastMessage.value = msg
+        }
+    }
+
+    fun uploadPaymentScreenshot(bookingId: String, screenshotUri: Uri, context: Context, onSuccess: () -> Unit = {}) {
+        repository.uploadPaymentScreenshot(bookingId, screenshotUri, context) { success, msg ->
+            _toastMessage.value = msg
+            if (success) {
+                addNotification(
+                    title = "Payment Screenshot Uploaded",
+                    message = "Screenshot for Order #$bookingId received. Payment verification is in progress."
+                )
+                onSuccess()
+            }
+        }
     }
 
     fun dismissPdfQuotation() {

@@ -84,7 +84,7 @@ fun UploadPhotosScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             MansuriTopAppBar(
                 title = "Upload Room Photos",
-                subtitle = "AI Wall Condition & Seepage Inspection",
+                subtitle = "Wall Condition & Seepage Inspection",
                 onBackClick = onBack,
                 onCallClick = onCallClick,
                 onWhatsAppClick = onWhatsAppClick
@@ -161,8 +161,8 @@ fun UploadPhotosScreen(
                                 text = "UPLOAD & ANALYZE WALL",
                                 icon = Icons.Default.AddAPhoto,
                                 onClick = {
-                                    val aiAnalysis = "AI Analysis: Minor wall dampness detected. Primer + 2 coats waterproofing putty recommended."
-                                    onUploadPhoto(selectedLabel, "sample_path", aiAnalysis)
+                                    val expertAnalysis = "Inspection Analysis: Minor wall dampness detected. Primer + 2 coats waterproofing putty recommended."
+                                    onUploadPhoto(selectedLabel, "sample_path", expertAnalysis)
                                 }
                             )
                         }
@@ -187,7 +187,7 @@ fun UploadPhotosScreen(
                     item {
                         LuxuryCard {
                             Text(
-                                text = "No room photos uploaded yet. Upload a photo above for an AI wall condition analysis.",
+                                text = "No room photos uploaded yet. Upload a photo above for a wall condition inspection.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = PureWhite.copy(alpha = 0.7f)
                             )

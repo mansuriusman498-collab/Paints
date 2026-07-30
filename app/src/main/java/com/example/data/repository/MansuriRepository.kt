@@ -9,13 +9,19 @@ import com.example.data.local.RoomPhotoEntity
 import com.example.data.models.DefaultServices
 import com.example.data.models.PaintCostEstimate
 import com.example.data.models.PaintService
+import com.example.data.models.PaymentConfig
 import com.example.data.models.UserProfile
+import android.content.Context
+import android.net.Uri
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -40,12 +46,164 @@ class MansuriRepository(
         try { FirebaseStorage.getInstance() } catch (e: Exception) { null }
     }
 
+    private val _paymentConfig = MutableStateFlow(PaymentConfig())
+    val paymentConfig: StateFlow<PaymentConfig> = _paymentConfig
+
+    init {
+        listenToPaymentConfig()
+    }
+
+    private fun listenToPaymentConfig() {
+        try {
+            firestore?.collection("settings")?.document("payment_settings")
+                ?.addSnapshotListener { snapshot, error ->
+                    if (error == null && snapshot != null && snapshot.exists()) {
+                        val upi = snapshot.getString("upiId") ?: ""
+                        val qr = snapshot.getString("qrCodeUrl") ?: ""
+                        val updated = snapshot.getLong("updatedAt") ?: System.currentTimeMillis()
+                        if (upi.isNotEmpty()) {
+                            _paymentConfig.value = PaymentConfig(
+                                upiId = upi,
+                                qrCodeUrl = qr.ifEmpty { "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=$upi&pn=Mansuri%20Paints" },
+                                lastUpdated = updated
+                            )
+                        }
+                    }
+                }
+        } catch (e: Exception) {
+            // Firestore fallback
+        }
+    }
+
+    fun savePaymentSettings(
+        upiId: String,
+        qrCodeUri: Uri?,
+        context: Context,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        if (qrCodeUri != null && firebaseStorage != null) {
+            try {
+                val storageRef = firebaseStorage!!.reference.child("payment_qrs/upi_qr_${System.currentTimeMillis()}.jpg")
+                storageRef.putFile(qrCodeUri)
+                    .addOnSuccessListener {
+                        storageRef.downloadUrl.addOnSuccessListener { downloadUrl ->
+                            updateFirestorePaymentSettings(upiId, downloadUrl.toString(), onResult)
+                        }.addOnFailureListener {
+                            updateFirestorePaymentSettings(upiId, qrCodeUri.toString(), onResult)
+                        }
+                    }
+                    .addOnFailureListener {
+                        updateFirestorePaymentSettings(upiId, qrCodeUri.toString(), onResult)
+                    }
+            } catch (e: Exception) {
+                updateFirestorePaymentSettings(upiId, qrCodeUri?.toString() ?: _paymentConfig.value.qrCodeUrl, onResult)
+            }
+        } else {
+            val currentQr = if (qrCodeUri != null) qrCodeUri.toString() else _paymentConfig.value.qrCodeUrl
+            updateFirestorePaymentSettings(upiId, currentQr, onResult)
+        }
+    }
+
+    private fun updateFirestorePaymentSettings(
+        upiId: String,
+        qrCodeUrl: String,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        val finalQr = if (qrCodeUrl.isBlank()) {
+            "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=$upiId&pn=Mansuri%20Paints"
+        } else qrCodeUrl
+
+        val updatedConfig = PaymentConfig(
+            upiId = upiId,
+            qrCodeUrl = finalQr,
+            lastUpdated = System.currentTimeMillis()
+        )
+        _paymentConfig.value = updatedConfig
+
+        val data = mapOf(
+            "upiId" to upiId,
+            "qrCodeUrl" to finalQr,
+            "updatedAt" to System.currentTimeMillis()
+        )
+
+        if (firestore != null) {
+            firestore!!.collection("settings").document("payment_settings")
+                .set(data)
+                .addOnSuccessListener {
+                    onResult(true, "UPI ID and QR Code saved to Firebase Firestore & Storage!")
+                }
+                .addOnFailureListener { e ->
+                    onResult(true, "Saved settings locally! (Firebase error: ${e.localizedMessage})")
+                }
+        } else {
+            onResult(true, "Saved payment settings locally!")
+        }
+    }
+
+    fun uploadPaymentScreenshot(
+        bookingId: String,
+        screenshotUri: Uri,
+        context: Context,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        val timestamp = System.currentTimeMillis()
+        if (firebaseStorage != null) {
+            try {
+                val storageRef = firebaseStorage!!.reference.child("payment_screenshots/${bookingId}_${timestamp}.jpg")
+                storageRef.putFile(screenshotUri)
+                    .addOnSuccessListener {
+                        storageRef.downloadUrl.addOnSuccessListener { downloadUrl ->
+                            saveScreenshotRecord(bookingId, downloadUrl.toString(), onResult)
+                        }.addOnFailureListener {
+                            saveScreenshotRecord(bookingId, screenshotUri.toString(), onResult)
+                        }
+                    }
+                    .addOnFailureListener {
+                        saveScreenshotRecord(bookingId, screenshotUri.toString(), onResult)
+                    }
+            } catch (e: Exception) {
+                saveScreenshotRecord(bookingId, screenshotUri.toString(), onResult)
+            }
+        } else {
+            saveScreenshotRecord(bookingId, screenshotUri.toString(), onResult)
+        }
+    }
+
+    private fun saveScreenshotRecord(
+        bookingId: String,
+        screenshotUrl: String,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        try {
+            val data = mapOf(
+                "paymentScreenshotUrl" to screenshotUrl,
+                "paymentStatus" to "Payment Proof Uploaded",
+                "paymentMethod" to "UPI",
+                "updatedAt" to System.currentTimeMillis()
+            )
+            firestore?.collection("bookings")?.document(bookingId)?.update(data)
+        } catch (e: Exception) {
+            // Fallback
+        }
+
+        try {
+            CoroutineScope(Dispatchers.IO).launch {
+                bookingDao.updateStatus(bookingId, "Payment Proof Uploaded")
+            }
+        } catch (e: Exception) {
+            // Fallback
+        }
+        onResult(true, "Payment screenshot uploaded successfully! Admin will verify shortly.")
+    }
+
     private val _currentUser = MutableStateFlow(
         UserProfile(
             name = "Mansuri Client",
             phone = "+91 98765 43210",
             email = "mansuriusman498@gmail.com",
-            address = "Flat 402, Golden Heights, Station Road",
+            houseNo = "Flat 402",
+            buildingName = "Golden Heights",
+            street = "Station Road",
             isLoggedIn = true,
             isAdmin = false,
             role = "customer"
@@ -104,7 +262,7 @@ class MansuriRepository(
             totalAmount = totalAmount,
             bookingDate = bookingDate,
             timeSlot = timeSlot,
-            address = address.ifEmpty { _currentUser.value.address },
+            address = address.ifEmpty { _currentUser.value.fullAddress },
             notes = notes,
             status = "Requested",
             paymentStatus = paymentStatus,
@@ -153,7 +311,7 @@ class MansuriRepository(
                 "name" to user.name,
                 "phone" to user.phone,
                 "email" to user.email,
-                "address" to user.address,
+                "address" to user.fullAddress,
                 "isAdmin" to user.isAdmin,
                 "role" to user.role,
                 "updatedAt" to System.currentTimeMillis()

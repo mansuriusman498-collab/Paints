@@ -12,10 +12,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.data.models.PaintCostEstimate
 import com.example.ui.MainViewModel
 import com.example.ui.components.MansuriBottomNavigation
 import com.example.ui.components.PdfQuotationModalDialog
@@ -27,15 +27,20 @@ import com.example.ui.screens.BookPainterScreen
 import com.example.ui.screens.BookingDetailsScreen
 import com.example.ui.screens.CalculatorScreen
 import com.example.ui.screens.ContactUsScreen
+import com.example.ui.screens.CustomerPaymentScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.LoginScreen
 import com.example.ui.screens.MyBookingsScreen
+import com.example.ui.screens.NotificationsScreen
 import com.example.ui.screens.OrderTrackingScreen
+import com.example.ui.screens.PainterDashboardScreen
+import com.example.ui.screens.PrivacyPolicyScreen
 import com.example.ui.screens.ProfileScreen
 import com.example.ui.screens.ServicesScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.SignUpScreen
 import com.example.ui.screens.SplashScreen
+import com.example.ui.screens.TermsConditionsScreen
 import com.example.ui.screens.UploadPhotosScreen
 import com.example.ui.theme.MansuriPaintsTheme
 
@@ -62,10 +67,12 @@ fun MansuriAppContent(viewModel: MainViewModel) {
   val bookings by viewModel.bookings.collectAsState()
   val roomPhotos by viewModel.roomPhotos.collectAsState()
   val reviews by viewModel.reviews.collectAsState()
+  val notifications by viewModel.notifications.collectAsState()
   val toastMessage by viewModel.toastMessage.collectAsState()
   val pdfModalEstimate by viewModel.pdfQuotationModal.collectAsState()
   val selectedService by viewModel.selectedService.collectAsState()
   val currentEstimate by viewModel.currentEstimate.collectAsState()
+  val paymentConfig by viewModel.paymentConfig.collectAsState()
   val isDarkTheme by viewModel.isDarkTheme.collectAsState()
 
   val showBottomNav = activeScreen in listOf("home", "services", "calculator", "my_bookings", "profile")
@@ -202,8 +209,25 @@ fun MansuriAppContent(viewModel: MainViewModel) {
                 booking = sBooking ?: activeBooking,
                 onShowPdfQuotation = { estimate -> viewModel.showPdfQuotation(estimate) },
                 onUploadRoomPhotos = { viewModel.navigateTo("upload_photos") },
+                onNavigateToPayment = { viewModel.navigateTo("customer_payment") },
                 onBack = { viewModel.navigateTo("my_bookings") },
                 onWhatsAppClick = { bId -> viewModel.openWhatsApp(context, "Inquiry about booking #$bId") },
+                onCallClick = { viewModel.makeCall(context) }
+            )
+          }
+
+          "customer_payment" -> {
+            val sBooking by viewModel.selectedBooking.collectAsState()
+            CustomerPaymentScreen(
+                booking = sBooking ?: activeBooking,
+                paymentConfig = paymentConfig,
+                onUploadScreenshot = { bId, screenshotUri ->
+                  viewModel.uploadPaymentScreenshot(bId, screenshotUri, context) {
+                    viewModel.navigateTo("order_tracking")
+                  }
+                },
+                onBack = { viewModel.navigateTo("booking_details") },
+                onWhatsAppClick = { viewModel.openWhatsApp(context, "UPI Payment inquiry") },
                 onCallClick = { viewModel.makeCall(context) }
             )
           }
@@ -235,13 +259,62 @@ fun MansuriAppContent(viewModel: MainViewModel) {
             } else {
               AdminDashboardScreen(
                   bookings = bookings,
+                  paymentConfig = paymentConfig,
                   onUpdateStatus = { id, newStatus -> viewModel.updateBookingStatus(id, newStatus) },
+                  onDeleteBooking = { id -> viewModel.deleteBooking(id) },
+                  onGeneratePdf = { b ->
+                    val est = PaintCostEstimate(
+                        areaSqFt = b.sqFt,
+                        roomsCount = b.bedrooms,
+                        serviceTitle = b.serviceName,
+                        ratePerSqFt = b.totalAmount / (b.sqFt.coerceAtLeast(1.0)),
+                        paintMaterialCost = b.totalAmount * 0.65,
+                        laborCost = b.totalAmount * 0.35,
+                        totalCost = b.totalAmount,
+                        estimatedLiters = (b.sqFt / 100.0) * 1.5,
+                        estimatedDays = (b.sqFt / 400.0).toInt().coerceAtLeast(1)
+                    )
+                    viewModel.showPdfQuotation(est)
+                  },
+                  onSavePaymentSettings = { upiId, qrUri ->
+                    viewModel.savePaymentSettings(upiId, qrUri, context)
+                  },
                   onBack = { viewModel.navigateTo("profile") },
                   onWhatsAppClick = { phone -> viewModel.openWhatsApp(context, "Hello from Mansuri Admin") },
                   onCallClick = { viewModel.makeCall(context) }
               )
             }
           }
+
+          "painter_panel" -> PainterDashboardScreen(
+              bookings = bookings,
+              painterName = userProfile.name,
+              onUpdateStatus = { id, st -> viewModel.updateBookingStatus(id, st) },
+              onUploadBeforePhoto = { id, path -> viewModel.uploadPhoto("Before Painting", path, "Pre-work wall inspection photo") },
+              onUploadAfterPhoto = { id, path -> viewModel.uploadPhoto("After Painting", path, "Post-work completed photo") },
+              onBack = { viewModel.navigateTo("profile") },
+              onWhatsAppClick = { phone -> viewModel.openWhatsApp(context, "Hello customer") },
+              onCallClick = { phone -> viewModel.makeCall(context) }
+          )
+
+          "notifications" -> NotificationsScreen(
+              notifications = notifications,
+              onBack = { viewModel.navigateTo("profile") },
+              onWhatsAppClick = { viewModel.openWhatsApp(context) },
+              onCallClick = { viewModel.makeCall(context) }
+          )
+
+          "privacy_policy" -> PrivacyPolicyScreen(
+              onBack = { viewModel.navigateTo("profile") },
+              onWhatsAppClick = { viewModel.openWhatsApp(context) },
+              onCallClick = { viewModel.makeCall(context) }
+          )
+
+          "terms_conditions" -> TermsConditionsScreen(
+              onBack = { viewModel.navigateTo("profile") },
+              onWhatsAppClick = { viewModel.openWhatsApp(context) },
+              onCallClick = { viewModel.makeCall(context) }
+          )
 
           "settings" -> SettingsScreen(
               isDarkTheme = isDarkTheme,

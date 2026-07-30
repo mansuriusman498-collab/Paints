@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,31 +26,48 @@ import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.FormatPaint
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.ListAlt
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.data.models.UserProfile
-import com.example.ui.components.LuxuryCard
+import com.example.ui.components.LuxuryGoldButton
 import com.example.ui.components.LuxuryOutlinedButton
 import com.example.ui.components.MansuriTopAppBar
 import com.example.ui.theme.CardBorderDark
@@ -70,14 +89,18 @@ fun ProfileScreen(
     onWhatsAppClick: () -> Unit,
     onCallClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    var showRateDialog by remember { mutableStateOf(false) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = OnyxBlack
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             MansuriTopAppBar(
-                title = "Customer Profile",
-                subtitle = "Settings & App Preferences",
+                title = "Customer Profile & Settings",
+                subtitle = "Addresses • Notifications • Security",
                 onBackClick = onBack,
                 onCallClick = onCallClick,
                 onWhatsAppClick = onWhatsAppClick
@@ -137,7 +160,7 @@ fun ProfileScreen(
                     }
                 }
 
-                // Preferences & App Options
+                // Saved Multiple Addresses Card
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -147,14 +170,56 @@ fun ProfileScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "Preferences",
+                            text = "Saved Delivery Addresses",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = GoldMetallic
                         )
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        // Theme Mode Switch
+                        userProfile.addresses.forEach { addr ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Home, contentDescription = null, tint = GoldPrimary)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "${addr.label}: ${addr.houseNo}, ${addr.buildingName}",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = PureWhite
+                                    )
+                                    Text(
+                                        text = "${addr.street}, ${addr.city}, ${addr.state} ${addr.pincode}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = PureWhite.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // App Preferences & Admin
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, CardBorderDark, RoundedCornerShape(16.dp)),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = CardDark)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "App Settings & Control",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = GoldMetallic
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -166,8 +231,8 @@ fun ProfileScreen(
                                 Icon(Icons.Default.DarkMode, contentDescription = null, tint = GoldPrimary)
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
-                                    Text("Luxury Dark Theme", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = PureWhite)
-                                    Text("High contrast black & gold theme", style = MaterialTheme.typography.labelSmall, color = PureWhite.copy(alpha = 0.6f))
+                                    Text("Luxury Black & Gold Theme", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = PureWhite)
+                                    Text("High contrast luxury theme", style = MaterialTheme.typography.labelSmall, color = PureWhite.copy(alpha = 0.6f))
                                 }
                             }
                             Switch(
@@ -180,9 +245,8 @@ fun ProfileScreen(
                             )
                         }
 
-                        Divider(color = CardBorderDark, modifier = Modifier.padding(vertical = 8.dp))
+                        HorizontalDivider(color = CardBorderDark, modifier = Modifier.padding(vertical = 8.dp))
 
-                        // Admin Dashboard Toggle
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -195,7 +259,7 @@ fun ProfileScreen(
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text("Admin Mode Access", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = PureWhite)
-                                    Text("Manage customer orders & statuses", style = MaterialTheme.typography.labelSmall, color = PureWhite.copy(alpha = 0.6f))
+                                    Text("Manage customer orders & dispatch", style = MaterialTheme.typography.labelSmall, color = PureWhite.copy(alpha = 0.6f))
                                 }
                             }
                             Switch(
@@ -213,7 +277,7 @@ fun ProfileScreen(
                     }
                 }
 
-                // Quick Navigation Links
+                // Navigation & Information Links
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -223,7 +287,7 @@ fun ProfileScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "Quick Navigation",
+                            text = "Platform Navigation & Legal",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = GoldMetallic
                         )
@@ -231,13 +295,26 @@ fun ProfileScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         ProfileLinkItem("My Bookings History", Icons.Default.ListAlt) { onNavigate("my_bookings") }
+                        ProfileLinkItem("Painter Workstation Panel", Icons.Default.FormatPaint) { onNavigate("painter_panel") }
+                        ProfileLinkItem("Notifications & Inbox", Icons.Default.Notifications) { onNavigate("notifications") }
                         ProfileLinkItem("Room Photos & Inspection", Icons.Default.AddAPhoto) { onNavigate("upload_photos") }
                         ProfileLinkItem("About Mansuri Paints", Icons.Default.Info) { onNavigate("about_us") }
                         ProfileLinkItem("Contact & Studio Location", Icons.Default.Phone) { onNavigate("contact_us") }
+                        ProfileLinkItem("Privacy Policy", Icons.Default.PrivacyTip) { onNavigate("privacy_policy") }
+                        ProfileLinkItem("Terms & Conditions", Icons.Default.PrivacyTip) { onNavigate("terms_conditions") }
 
-                        if (userProfile.isAdmin) {
-                            ProfileLinkItem("Open Admin Dashboard", Icons.Default.AdminPanelSettings) { onNavigate("admin_dashboard") }
+                        ProfileLinkItem("Share App with Friends", Icons.Default.Share) {
+                            val sendIntent: Intent = Intent().apply {
+                                action = Intent.ACTION_SEND
+                                putExtra(Intent.EXTRA_TEXT, "Book luxury painting services on Mansuri Paints App!")
+                                type = "text/plain"
+                            }
+                            val shareIntent = Intent.createChooser(sendIntent, null)
+                            context.startActivity(shareIntent)
                         }
+
+                        ProfileLinkItem("Rate App 5 Stars", Icons.Default.Star) { showRateDialog = true }
+                        ProfileLinkItem("Check for App Updates", Icons.Default.SystemUpdate) { showUpdateDialog = true }
                     }
                 }
 
@@ -249,6 +326,35 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
             }
+        }
+
+        // Rate App Dialog
+        if (showRateDialog) {
+            AlertDialog(
+                onDismissRequest = { showRateDialog = false },
+                containerColor = CardDark,
+                title = { Text("Rate Mansuri Paints", color = GoldPrimary) },
+                text = { Text("Enjoying our premium painting service? Please give us a 5-Star rating on Google Play Store!", color = PureWhite) },
+                confirmButton = {
+                    LuxuryGoldButton(text = "RATE 5 STARS", onClick = { showRateDialog = false })
+                },
+                dismissButton = {
+                    TextButton(onClick = { showRateDialog = false }) { Text("LATER", color = PureWhite) }
+                }
+            )
+        }
+
+        // Check Update Dialog
+        if (showUpdateDialog) {
+            AlertDialog(
+                onDismissRequest = { showUpdateDialog = false },
+                containerColor = CardDark,
+                title = { Text("App Update Checker", color = GoldPrimary) },
+                text = { Text("You are using the latest version v2.4.0 (Production Build) of Mansuri Paints App.", color = PureWhite) },
+                confirmButton = {
+                    LuxuryGoldButton(text = "OK", onClick = { showUpdateDialog = false })
+                }
+            )
         }
     }
 }
@@ -263,15 +369,15 @@ private fun ProfileLinkItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(vertical = 12.dp),
+            .padding(vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(imageVector = icon, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(20.dp))
+            Icon(imageVector = icon, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(12.dp))
             Text(text = title, style = MaterialTheme.typography.bodyMedium, color = PureWhite)
         }
-        Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = PureWhite.copy(alpha = 0.5f))
+        Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = PureWhite.copy(alpha = 0.5f), modifier = Modifier.size(18.dp))
     }
 }

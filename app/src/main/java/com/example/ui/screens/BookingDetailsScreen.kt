@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FormatPaint
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -56,6 +57,7 @@ fun BookingDetailsScreen(
     booking: BookingEntity?,
     onShowPdfQuotation: (PaintCostEstimate) -> Unit,
     onUploadRoomPhotos: () -> Unit,
+    onNavigateToPayment: () -> Unit = {},
     onBack: () -> Unit,
     onWhatsAppClick: (bookingId: String) -> Unit,
     onCallClick: () -> Unit
@@ -250,6 +252,12 @@ fun BookingDetailsScreen(
 
                     // Action Buttons
                     LuxuryGoldButton(
+                        text = "PAY VIA UPI & SCAN QR CODE",
+                        onClick = onNavigateToPayment,
+                        icon = Icons.Default.Payment
+                    )
+
+                    LuxuryOutlinedButton(
                         text = "DOWNLOAD QUOTATION PDF",
                         onClick = {
                             val estimate = PaintCostEstimate(
