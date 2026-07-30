@@ -12,6 +12,7 @@ import com.example.data.models.PaintService
 import com.example.data.models.UserProfile
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,6 +35,9 @@ class MansuriRepository(
     }
     private val firebaseAuth by lazy {
         try { FirebaseAuth.getInstance() } catch (e: Exception) { null }
+    }
+    private val firebaseStorage by lazy {
+        try { FirebaseStorage.getInstance() } catch (e: Exception) { null }
     }
 
     private val _currentUser = MutableStateFlow(
@@ -162,24 +166,44 @@ class MansuriRepository(
     }
 
     suspend fun addRoomPhoto(roomLabel: String, photoPath: String, aiNotes: String) {
+        val photoId = UUID.randomUUID().toString()
         val photo = RoomPhotoEntity(
-            id = UUID.randomUUID().toString(),
+            id = photoId,
             roomLabel = roomLabel,
             photoPath = photoPath,
             aiInspectionNotes = aiNotes
         )
         roomPhotoDao.insertPhoto(photo)
+        try {
+            val photoMap = mapOf(
+                "id" to photoId,
+                "roomLabel" to roomLabel,
+                "photoPath" to photoPath,
+                "aiNotes" to aiNotes,
+                "storageBucket" to "gs://mansuri-paint.firebasestorage.app/room_photos/$photoId",
+                "timestamp" to System.currentTimeMillis()
+            )
+            firestore?.collection("room_photos")?.document(photoId)?.set(photoMap)
+        } catch (e: Exception) {
+            // Firestore sync fallback
+        }
     }
 
     suspend fun deleteRoomPhoto(id: String) {
         roomPhotoDao.deletePhoto(id)
+        try {
+            firestore?.collection("room_photos")?.document(id)?.delete()
+        } catch (e: Exception) {
+            // Firestore fallback
+        }
     }
 
     suspend fun submitReview(userName: String, rating: Float, comment: String, serviceName: String) {
         val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
         val dateStr = sdf.format(Date())
+        val reviewId = UUID.randomUUID().toString()
         val review = ReviewEntity(
-            id = UUID.randomUUID().toString(),
+            id = reviewId,
             userName = userName.ifEmpty { "Verified Customer" },
             rating = rating,
             comment = comment,
@@ -187,6 +211,20 @@ class MansuriRepository(
             serviceName = serviceName
         )
         reviewDao.insertReview(review)
+        try {
+            val reviewMap = mapOf(
+                "id" to reviewId,
+                "userName" to review.userName,
+                "rating" to rating,
+                "comment" to comment,
+                "date" to dateStr,
+                "serviceName" to serviceName,
+                "timestamp" to System.currentTimeMillis()
+            )
+            firestore?.collection("reviews")?.document(reviewId)?.set(reviewMap)
+        } catch (e: Exception) {
+            // Firestore sync fallback
+        }
     }
 
     fun login(phone: String, name: String = "Valued Customer") {
