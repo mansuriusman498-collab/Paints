@@ -10,6 +10,8 @@ import com.example.data.models.DefaultServices
 import com.example.data.models.PaintCostEstimate
 import com.example.data.models.PaintService
 import com.example.data.models.UserProfile
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +29,13 @@ class MansuriRepository(
     val allPhotos: Flow<List<RoomPhotoEntity>> = roomPhotoDao.getAllPhotos()
     val allReviews: Flow<List<ReviewEntity>> = reviewDao.getAllReviews()
 
+    private val firestore by lazy {
+        try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }
+    }
+    private val firebaseAuth by lazy {
+        try { FirebaseAuth.getInstance() } catch (e: Exception) { null }
+    }
+
     private val _currentUser = MutableStateFlow(
         UserProfile(
             name = "Mansuri Client",
@@ -34,7 +43,8 @@ class MansuriRepository(
             email = "mansuriusman498@gmail.com",
             address = "Flat 402, Golden Heights, Station Road",
             isLoggedIn = true,
-            isAdmin = false
+            isAdmin = false,
+            role = "customer"
         )
     )
     val currentUser: StateFlow<UserProfile> = _currentUser
@@ -98,11 +108,57 @@ class MansuriRepository(
             painterPhone = "+91 78430 99068"
         )
         bookingDao.insertBooking(entity)
+        syncBookingToFirestore(entity)
         return bookingId
     }
 
     suspend fun updateBookingStatus(id: String, status: String) {
         bookingDao.updateStatus(id, status)
+        try {
+            firestore?.collection("bookings")?.document(id)?.update("status", status)
+        } catch (e: Exception) {
+            // Firestore fallback
+        }
+    }
+
+    private fun syncBookingToFirestore(booking: BookingEntity) {
+        try {
+            val bookingMap = mapOf(
+                "id" to booking.id,
+                "customerName" to booking.customerName,
+                "phone" to booking.phone,
+                "serviceName" to booking.serviceName,
+                "sqFt" to booking.sqFt,
+                "totalAmount" to booking.totalAmount,
+                "bookingDate" to booking.bookingDate,
+                "timeSlot" to booking.timeSlot,
+                "address" to booking.address,
+                "status" to booking.status,
+                "paymentStatus" to booking.paymentStatus,
+                "timestamp" to System.currentTimeMillis()
+            )
+            firestore?.collection("bookings")?.document(booking.id)?.set(bookingMap)
+        } catch (e: Exception) {
+            // Firestore fallback
+        }
+    }
+
+    private fun syncUserToFirestore(user: UserProfile) {
+        try {
+            val userMap = mapOf(
+                "name" to user.name,
+                "phone" to user.phone,
+                "email" to user.email,
+                "address" to user.address,
+                "isAdmin" to user.isAdmin,
+                "role" to user.role,
+                "updatedAt" to System.currentTimeMillis()
+            )
+            val docId = if (user.isAdmin) "admin_user" else user.phone.replace("+", "").replace(" ", "")
+            firestore?.collection("users")?.document(docId.ifEmpty { "user_" + System.currentTimeMillis() })?.set(userMap)
+        } catch (e: Exception) {
+            // Firestore fallback
+        }
     }
 
     suspend fun addRoomPhoto(roomLabel: String, photoPath: String, aiNotes: String) {
@@ -134,38 +190,59 @@ class MansuriRepository(
     }
 
     fun login(phone: String, name: String = "Valued Customer") {
-        _currentUser.value = _currentUser.value.copy(
+        val updated = _currentUser.value.copy(
             name = name,
             phone = phone,
             isLoggedIn = true,
-            isGoogleUser = false
+            isGoogleUser = false,
+            isAdmin = false,
+            role = "customer"
         )
+        _currentUser.value = updated
+        syncUserToFirestore(updated)
     }
 
     fun loginWithGoogle(email: String, name: String) {
-        _currentUser.value = _currentUser.value.copy(
+        val updated = _currentUser.value.copy(
             name = name,
             email = email,
             isLoggedIn = true,
-            isGoogleUser = true
+            isGoogleUser = true,
+            isAdmin = false,
+            role = "customer"
         )
+        _currentUser.value = updated
+        syncUserToFirestore(updated)
     }
 
     fun logout() {
-        _currentUser.value = _currentUser.value.copy(isLoggedIn = false, isAdmin = false)
+        try {
+            firebaseAuth?.signOut()
+        } catch (e: Exception) {
+            // Auth fallback
+        }
+        _currentUser.value = _currentUser.value.copy(isLoggedIn = false, isAdmin = false, role = "customer")
     }
 
     fun setAdminUser(email: String, name: String) {
-        _currentUser.value = _currentUser.value.copy(
+        val updated = _currentUser.value.copy(
             email = email,
             name = name,
             isLoggedIn = true,
-            isAdmin = true
+            isAdmin = true,
+            role = "admin"
         )
+        _currentUser.value = updated
+        syncUserToFirestore(updated)
     }
 
     fun setAdminMode(isAdmin: Boolean) {
-        _currentUser.value = _currentUser.value.copy(isAdmin = isAdmin)
+        val updated = _currentUser.value.copy(
+            isAdmin = isAdmin,
+            role = if (isAdmin) "admin" else "customer"
+        )
+        _currentUser.value = updated
+        syncUserToFirestore(updated)
     }
 
     suspend fun seedInitialDataIfEmpty() {

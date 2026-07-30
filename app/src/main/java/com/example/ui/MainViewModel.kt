@@ -79,10 +79,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun navigateTo(screen: String) {
-        if (screen == "admin_dashboard" && !userProfile.value.isAdmin) {
-            _toastMessage.value = "Access Denied: Only Admin Account can access Admin Dashboard"
-            _activeScreen.value = "admin_login"
-            return
+        if (screen == "admin_dashboard") {
+            val user = userProfile.value
+            if (!user.isAdmin || user.role != "admin") {
+                _toastMessage.value = "Access Denied: Customers cannot access Admin Dashboard."
+                _activeScreen.value = "login"
+                return
+            }
         }
         _activeScreen.value = screen
     }
@@ -209,8 +212,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleAdminMode(isAdmin: Boolean) {
-        if (isAdmin && userProfile.value.email != "admin@mansuripaints.com") {
-            _toastMessage.value = "Admin Login Required"
+        val current = userProfile.value
+        if (isAdmin && (current.email != "admin@mansuripaints.com" || current.role != "admin")) {
+            _toastMessage.value = "Access Denied: Admin authentication required"
             navigateTo("admin_login")
             return
         }

@@ -31,7 +31,8 @@ data class UserProfile(
     val address: String = "Flat 402, Golden Towers, Station Road",
     val isLoggedIn: Boolean = true,
     val isGoogleUser: Boolean = false,
-    val isAdmin: Boolean = false
+    val isAdmin: Boolean = false,
+    val role: String = if (isAdmin) "admin" else "customer"
 )
 
 object DefaultServices {

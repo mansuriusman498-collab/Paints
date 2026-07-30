@@ -227,13 +227,21 @@ fun MansuriAppContent(viewModel: MainViewModel) {
               onBackToCustomerLogin = { viewModel.navigateTo("login") }
           )
 
-          "admin_dashboard" -> AdminDashboardScreen(
-              bookings = bookings,
-              onUpdateStatus = { id, newStatus -> viewModel.updateBookingStatus(id, newStatus) },
-              onBack = { viewModel.navigateTo("profile") },
-              onWhatsAppClick = { phone -> viewModel.openWhatsApp(context, "Hello from Mansuri Admin") },
-              onCallClick = { viewModel.makeCall(context) }
-          )
+          "admin_dashboard" -> {
+            if (!userProfile.isAdmin || userProfile.role != "admin") {
+              androidx.compose.runtime.LaunchedEffect(Unit) {
+                viewModel.navigateTo("login")
+              }
+            } else {
+              AdminDashboardScreen(
+                  bookings = bookings,
+                  onUpdateStatus = { id, newStatus -> viewModel.updateBookingStatus(id, newStatus) },
+                  onBack = { viewModel.navigateTo("profile") },
+                  onWhatsAppClick = { phone -> viewModel.openWhatsApp(context, "Hello from Mansuri Admin") },
+                  onCallClick = { viewModel.makeCall(context) }
+              )
+            }
+          }
 
           "settings" -> SettingsScreen(
               isDarkTheme = isDarkTheme,
