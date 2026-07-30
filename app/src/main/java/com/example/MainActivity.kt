@@ -22,7 +22,9 @@ import com.example.ui.components.PdfQuotationModalDialog
 import com.example.ui.components.ToastNotificationBanner
 import com.example.ui.screens.AboutUsScreen
 import com.example.ui.screens.AdminDashboardScreen
+import com.example.ui.screens.AdminLoginScreen
 import com.example.ui.screens.BookPainterScreen
+import com.example.ui.screens.BookingDetailsScreen
 import com.example.ui.screens.CalculatorScreen
 import com.example.ui.screens.ContactUsScreen
 import com.example.ui.screens.HomeScreen
@@ -31,6 +33,8 @@ import com.example.ui.screens.MyBookingsScreen
 import com.example.ui.screens.OrderTrackingScreen
 import com.example.ui.screens.ProfileScreen
 import com.example.ui.screens.ServicesScreen
+import com.example.ui.screens.SettingsScreen
+import com.example.ui.screens.SignUpScreen
 import com.example.ui.screens.SplashScreen
 import com.example.ui.screens.UploadPhotosScreen
 import com.example.ui.theme.MansuriPaintsTheme
@@ -95,7 +99,16 @@ fun MansuriAppContent(viewModel: MainViewModel) {
           "login" -> LoginScreen(
               onLoginPhone = { phone, name -> viewModel.loginWithPhone(phone, name) },
               onLoginGoogle = { email, name -> viewModel.loginWithGoogle(email, name) },
+              onNavigateToSignUp = { viewModel.navigateTo("signup") },
+              onNavigateToAdminLogin = { viewModel.navigateTo("admin_login") },
               onSkip = { viewModel.navigateTo("home") }
+          )
+
+          "signup" -> SignUpScreen(
+              onSignUp = { name, phone, email, address ->
+                viewModel.registerCustomer(name, phone, email, address)
+              },
+              onBackToLogin = { viewModel.navigateTo("login") }
           )
 
           "home" -> HomeScreen(
@@ -171,8 +184,9 @@ fun MansuriAppContent(viewModel: MainViewModel) {
 
           "my_bookings" -> MyBookingsScreen(
               bookings = bookings,
-              onTrackBooking = {
-                viewModel.navigateTo("order_tracking")
+              onTrackBooking = { booking ->
+                viewModel.selectBooking(booking)
+                viewModel.navigateTo("booking_details")
               },
               onShowPdfQuotation = { estimate -> viewModel.showPdfQuotation(estimate) },
               onBack = { viewModel.navigateTo("home") },
@@ -182,6 +196,18 @@ fun MansuriAppContent(viewModel: MainViewModel) {
               onCallClick = { viewModel.makeCall(context) }
           )
 
+          "booking_details" -> {
+            val sBooking by viewModel.selectedBooking.collectAsState()
+            BookingDetailsScreen(
+                booking = sBooking ?: activeBooking,
+                onShowPdfQuotation = { estimate -> viewModel.showPdfQuotation(estimate) },
+                onUploadRoomPhotos = { viewModel.navigateTo("upload_photos") },
+                onBack = { viewModel.navigateTo("my_bookings") },
+                onWhatsAppClick = { bId -> viewModel.openWhatsApp(context, "Inquiry about booking #$bId") },
+                onCallClick = { viewModel.makeCall(context) }
+            )
+          }
+
           "profile" -> ProfileScreen(
               userProfile = userProfile,
               isDarkTheme = isDarkTheme,
@@ -190,6 +216,30 @@ fun MansuriAppContent(viewModel: MainViewModel) {
               onNavigate = { viewModel.navigateTo(it) },
               onLogout = { viewModel.logout() },
               onBack = { viewModel.navigateTo("home") },
+              onWhatsAppClick = { viewModel.openWhatsApp(context) },
+              onCallClick = { viewModel.makeCall(context) }
+          )
+
+          "admin_login" -> AdminLoginScreen(
+              onAdminLogin = { email, pass ->
+                viewModel.adminLogin(email, pass)
+              },
+              onBackToCustomerLogin = { viewModel.navigateTo("login") }
+          )
+
+          "admin_dashboard" -> AdminDashboardScreen(
+              bookings = bookings,
+              onUpdateStatus = { id, newStatus -> viewModel.updateBookingStatus(id, newStatus) },
+              onBack = { viewModel.navigateTo("profile") },
+              onWhatsAppClick = { phone -> viewModel.openWhatsApp(context, "Hello from Mansuri Admin") },
+              onCallClick = { viewModel.makeCall(context) }
+          )
+
+          "settings" -> SettingsScreen(
+              isDarkTheme = isDarkTheme,
+              onToggleTheme = { viewModel.toggleTheme() },
+              onNavigate = { viewModel.navigateTo(it) },
+              onBack = { viewModel.navigateTo("profile") },
               onWhatsAppClick = { viewModel.openWhatsApp(context) },
               onCallClick = { viewModel.makeCall(context) }
           )
@@ -207,14 +257,6 @@ fun MansuriAppContent(viewModel: MainViewModel) {
               onSubmitInquiry = { name, phone, msg ->
                 viewModel.openWhatsApp(context, "Inquiry from $name ($phone): $msg")
               }
-          )
-
-          "admin_dashboard" -> AdminDashboardScreen(
-              bookings = bookings,
-              onUpdateStatus = { id, newStatus -> viewModel.updateBookingStatus(id, newStatus) },
-              onBack = { viewModel.navigateTo("profile") },
-              onWhatsAppClick = { phone -> viewModel.openWhatsApp(context, "Hello from Mansuri Admin") },
-              onCallClick = { viewModel.makeCall(context) }
           )
         }
       }

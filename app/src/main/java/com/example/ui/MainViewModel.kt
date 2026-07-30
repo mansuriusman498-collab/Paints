@@ -11,6 +11,7 @@ import com.example.data.models.PaintCostEstimate
 import com.example.data.models.PaintService
 import com.example.data.models.UserProfile
 import com.example.data.repository.MansuriRepository
+import com.example.data.local.BookingEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -46,6 +47,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val userProfile: StateFlow<UserProfile> = repository.currentUser
 
+    // Selected Booking for BookingDetails screen
+    private val _selectedBooking = MutableStateFlow<BookingEntity?>(null)
+    val selectedBooking: StateFlow<BookingEntity?> = _selectedBooking.asStateFlow()
+
     // App state
     private val _isDarkTheme = MutableStateFlow(true)
     val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
@@ -74,7 +79,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun navigateTo(screen: String) {
+        if (screen == "admin_dashboard" && !userProfile.value.isAdmin) {
+            _toastMessage.value = "Access Denied: Only Admin Account can access Admin Dashboard"
+            _activeScreen.value = "admin_login"
+            return
+        }
         _activeScreen.value = screen
+    }
+
+    fun selectBooking(booking: BookingEntity) {
+        _selectedBooking.value = booking
     }
 
     fun toggleTheme() {
@@ -141,7 +155,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun uploadPhoto(label: String, path: String, notes: String) {
         viewModelScope.launch {
             repository.addRoomPhoto(label, path, notes)
-            _toastMessage.value = "Room Photo Uploaded for AI Inspection"
+            _toastMessage.value = "Room Photo Uploaded for Inspection"
         }
     }
 
@@ -170,6 +184,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         navigateTo("home")
     }
 
+    fun registerCustomer(name: String, phone: String, email: String, address: String) {
+        repository.login(phone, name)
+        _toastMessage.value = "Account created for $name!"
+        navigateTo("home")
+    }
+
+    fun adminLogin(emailInput: String, passwordInput: String): Boolean {
+        return if (emailInput.trim().lowercase() == "admin@mansuripaints.com" && passwordInput == "Mansuri@123") {
+            repository.setAdminUser("admin@mansuripaints.com", "Mansuri Admin")
+            _toastMessage.value = "Admin Login Successful! Welcome Admin"
+            navigateTo("admin_dashboard")
+            true
+        } else {
+            _toastMessage.value = "Invalid Admin Credentials! Access Denied."
+            false
+        }
+    }
+
     fun logout() {
         repository.logout()
         _toastMessage.value = "Logged Out"
@@ -177,6 +209,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleAdminMode(isAdmin: Boolean) {
+        if (isAdmin && userProfile.value.email != "admin@mansuripaints.com") {
+            _toastMessage.value = "Admin Login Required"
+            navigateTo("admin_login")
+            return
+        }
         repository.setAdminMode(isAdmin)
         _toastMessage.value = if (isAdmin) "Admin Dashboard Activated" else "Switched to Client Mode"
     }

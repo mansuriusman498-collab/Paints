@@ -152,7 +152,16 @@ class MansuriRepository(
     }
 
     fun logout() {
-        _currentUser.value = _currentUser.value.copy(isLoggedIn = false)
+        _currentUser.value = _currentUser.value.copy(isLoggedIn = false, isAdmin = false)
+    }
+
+    fun setAdminUser(email: String, name: String) {
+        _currentUser.value = _currentUser.value.copy(
+            email = email,
+            name = name,
+            isLoggedIn = true,
+            isAdmin = true
+        )
     }
 
     fun setAdminMode(isAdmin: Boolean) {
