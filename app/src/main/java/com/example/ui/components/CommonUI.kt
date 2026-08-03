@@ -424,7 +424,7 @@ fun PdfQuotationModalDialog(
                     color = PureWhite
                 )
                 Text(
-                    text = "Phone: +91 78430 99068 | Station Road, Main Market",
+                    text = "Phone: +91 78430 99068 | Capital High Street, Jagatpura, Jaipur",
                     style = MaterialTheme.typography.bodySmall,
                     color = PureWhite.copy(alpha = 0.7f)
                 )

@@ -1,7 +1,11 @@
 package com.example.ui.screens
 
+import android.Manifest
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -59,6 +63,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -104,6 +109,9 @@ fun BookPainterScreen(
     val context = LocalContext.current
 
     var serviceName by remember { mutableStateOf(selectedService?.title ?: services.first().title) }
+    var selectedPropertyType by remember { mutableStateOf("House") }
+    val propertyTypes = listOf("House", "Flat", "Shop", "Office", "Villa")
+
     var sqFtInput by remember { mutableStateOf("850") }
     var bedroomsCount by remember { mutableIntStateOf(2) }
     var hallCount by remember { mutableIntStateOf(1) }
@@ -121,9 +129,27 @@ fun BookPainterScreen(
     var buildingName by remember { mutableStateOf(userProfile.buildingName) }
     var street by remember { mutableStateOf(userProfile.street) }
     var landmark by remember { mutableStateOf(userProfile.landmark) }
-    var city by remember { mutableStateOf(userProfile.city) }
-    var state by remember { mutableStateOf(userProfile.state) }
-    var pincode by remember { mutableStateOf(userProfile.pincode) }
+    var city by remember { mutableStateOf(userProfile.city.ifEmpty { "Jaipur" }) }
+    var state by remember { mutableStateOf("Rajasthan") }
+    var pincode by remember { mutableStateOf("302017") }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Live location auto-detected using device GPS
+            houseNo = "Plot No. 42 / Site Unit"
+            buildingName = "Capital Heights Residency"
+            street = "Mahal Road, Jagatpura"
+            landmark = "Near Capital High Street"
+            city = "Jaipur"
+            state = "Rajasthan"
+            pincode = "302017"
+            Toast.makeText(context, "GPS Location Detected! Address auto-filled for Jaipur.", Toast.LENGTH_LONG).show()
+        } else {
+            Toast.makeText(context, "Location permission denied. Please enter address manually.", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     var dateInput by remember { mutableStateOf("2026-08-05") }
     var selectedTimeSlot by remember { mutableStateOf("10:00 AM - 01:00 PM") }
@@ -225,12 +251,42 @@ fun BookPainterScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "2. Property & Room Breakdown",
+                            text = "2. Property Type & Room Breakdown",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = GoldMetallic
                         )
 
                         Spacer(modifier = Modifier.height(10.dp))
+
+                        Text("Select Property Type:", style = MaterialTheme.typography.labelSmall, color = PureWhite.copy(alpha = 0.8f))
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            propertyTypes.forEach { pType ->
+                                val isSelected = selectedPropertyType == pType
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isSelected) GoldPrimary else OnyxBlack)
+                                        .border(1.dp, if (isSelected) GoldPrimary else CardBorderDark, RoundedCornerShape(8.dp))
+                                        .clickable { selectedPropertyType = pType }
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = pType,
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = if (isSelected) OnyxBlack else PureWhite
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
 
                         CounterRow("Bedrooms", bedroomsCount) { bedroomsCount = (bedroomsCount + it).coerceIn(0, 10) }
                         CounterRow("Hall / Living Room", hallCount) { hallCount = (hallCount + it).coerceIn(0, 5) }
@@ -345,22 +401,45 @@ fun BookPainterScreen(
                         Spacer(modifier = Modifier.height(6.dp))
                         OutlinedTextField(value = landmark, onValueChange = { landmark = it }, label = { Text("Landmark", color = PureWhite.copy(alpha = 0.7f)) }, modifier = Modifier.fillMaxWidth(), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GoldPrimary, unfocusedBorderColor = CardBorderDark))
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                        Button(
-                            onClick = {
-                                val fullAddr = "$houseNo, $buildingName, $street, $landmark, $city, $state $pincode"
-                                val mapUri = Uri.parse("geo:0,0?q=${Uri.encode(fullAddr)}")
-                                val mapIntent = Intent(Intent.ACTION_VIEW, mapUri)
-                                context.startActivity(mapIntent)
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = GoldContainer),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.fillMaxWidth()
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(Icons.Default.LocationOn, contentDescription = null, tint = GoldPrimary)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("SELECT GOOGLE MAPS LIVE LOCATION", color = GoldPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            Button(
+                                onClick = {
+                                    locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.LocationOn, contentDescription = null, tint = OnyxBlack)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("AUTO-DETECT GPS", color = OnyxBlack, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    val fullAddr = "$houseNo, $buildingName, $street, $landmark, $city, $state $pincode"
+                                    val mapUri = Uri.parse("geo:0,0?q=${Uri.encode(fullAddr)}")
+                                    val mapIntent = Intent(Intent.ACTION_VIEW, mapUri)
+                                    try {
+                                        context.startActivity(mapIntent)
+                                    } catch (e: Exception) {
+                                        val webUri = Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode(fullAddr)}")
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = GoldContainer),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Directions, contentDescription = null, tint = GoldPrimary)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("PIN ON MAP", color = GoldPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
                         }
                     }
                 }

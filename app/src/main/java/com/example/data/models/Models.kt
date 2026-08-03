@@ -31,55 +31,55 @@ data class CustomerAddress(
     val buildingName: String = "",
     val street: String = "",
     val landmark: String = "",
-    val city: String = "Ahmedabad",
-    val state: String = "Gujarat",
-    val pincode: String = "380001",
-    val latitude: Double = 23.0225,
-    val longitude: Double = 72.5714,
+    val city: String = "Jaipur",
+    val state: String = "Rajasthan",
+    val pincode: String = "302017",
+    val latitude: Double = 26.8228,
+    val longitude: Double = 75.8648,
     val isDefault: Boolean = true
 ) {
     fun fullAddressString(): String {
         val parts = listOf(houseNo, buildingName, street, landmark, city, state, pincode).filter { it.isNotBlank() }
-        return if (parts.isNotEmpty()) parts.joinToString(", ") else "Flat 402, Golden Towers, Station Road, Ahmedabad, Gujarat 380001"
+        return if (parts.isNotEmpty()) parts.joinToString(", ") else "Capital High Street, Mahal Road, Jagatpura, Jaipur, Rajasthan 302017"
     }
 }
 
 data class UserProfile(
     val id: String = "u1",
     val name: String = "Mansuri Client",
-    val phone: String = "+91 98765 43210",
+    val phone: String = "+91 78430 99068",
     val email: String = "mansuriusman498@gmail.com",
     val photoUrl: String = "",
-    val houseNo: String = "Flat 402",
-    val buildingName: String = "Golden Towers",
-    val street: String = "Station Road",
-    val landmark: String = "Near Central Mall",
-    val city: String = "Ahmedabad",
-    val state: String = "Gujarat",
-    val pincode: String = "380001",
+    val houseNo: String = "Flat 102",
+    val buildingName: String = "Capital Residence",
+    val street: String = "Mahal Road, Jagatpura",
+    val landmark: String = "Near Capital High Street",
+    val city: String = "Jaipur",
+    val state: String = "Rajasthan",
+    val pincode: String = "302017",
     val addresses: List<CustomerAddress> = listOf(
         CustomerAddress(
             id = "addr_1",
             label = "Home",
-            houseNo = "Flat 402",
-            buildingName = "Golden Towers",
-            street = "Station Road",
-            landmark = "Near Central Mall",
-            city = "Ahmedabad",
-            state = "Gujarat",
-            pincode = "380001",
+            houseNo = "Flat 102",
+            buildingName = "Capital Residence",
+            street = "Mahal Road, Jagatpura",
+            landmark = "Near Capital High Street",
+            city = "Jaipur",
+            state = "Rajasthan",
+            pincode = "302017",
             isDefault = true
         ),
         CustomerAddress(
             id = "addr_2",
             label = "Office",
-            houseNo = "Suite 701",
-            buildingName = "Apex Commercial Hub",
-            street = "SG Highway",
-            landmark = "Opp. YMCA Club",
-            city = "Ahmedabad",
-            state = "Gujarat",
-            pincode = "380015",
+            houseNo = "Suite 304",
+            buildingName = "Capital High Street",
+            street = "Mahal Road, Jagatpura",
+            landmark = "Jagatpura Flying Club",
+            city = "Jaipur",
+            state = "Rajasthan",
+            pincode = "302017",
             isDefault = false
         )
     ),

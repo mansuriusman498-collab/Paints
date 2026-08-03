@@ -139,7 +139,7 @@ fun HomeScreen(
                             )
                             Spacer(modifier = Modifier.width(2.dp))
                             Text(
-                                text = "Station Road • Urban Master Studio",
+                                text = "Capital High Street, Jagatpura, Jaipur",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = PureWhite.copy(alpha = 0.7f)
                             )

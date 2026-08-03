@@ -201,7 +201,7 @@ fun ContactUsScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             MansuriTopAppBar(
                 title = "Contact Us",
-                subtitle = "Station Road • Main Market Studio",
+                subtitle = "Capital High Street • Jagatpura Jaipur Studio",
                 onBackClick = onBack,
                 onCallClick = onCallClick,
                 onWhatsAppClick = onWhatsAppClick
@@ -261,7 +261,7 @@ fun ContactUsScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "Studio Address & Info",
+                            text = "Head Office Address & Contact",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = GoldMetallic
                         )
@@ -272,8 +272,8 @@ fun ContactUsScreen(
                             Icon(Icons.Default.LocationOn, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(22.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
-                                Text("Mansuri Paints Master Studio", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = PureWhite)
-                                Text("Station Road, Main Market, Near City Centre", style = MaterialTheme.typography.bodySmall, color = PureWhite.copy(alpha = 0.7f))
+                                Text("Mansuri Paints Head Office", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = PureWhite)
+                                Text("Capital High Street, Mahal Road, Jagatpura, Jaipur, Rajasthan – 302017", style = MaterialTheme.typography.bodySmall, color = PureWhite.copy(alpha = 0.85f))
                             }
                         }
 
@@ -295,35 +295,61 @@ fun ContactUsScreen(
                     }
                 }
 
-                // Interactive Map Preview Card
+                // Interactive Map Preview & Directions Card
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(160.dp)
                         .border(1.dp, CardBorderDark, RoundedCornerShape(16.dp)),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = CardDark)
                 ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        Image(
-                            painter = painterResource(id = R.drawable.img_hero_banner_1785404855819),
-                            contentDescription = "Map Location Preview",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .background(OnyxBlack.copy(alpha = 0.7f)),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .height(140.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(1.dp, CardBorderDark, RoundedCornerShape(12.dp))
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.LocationOn, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(36.dp))
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text("Google Maps Studio Location", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = PureWhite)
-                                Text("Station Road, Main Market", style = MaterialTheme.typography.bodySmall, color = GoldMetallic)
+                            Image(
+                                painter = painterResource(id = R.drawable.img_hero_banner_1785404855819),
+                                contentDescription = "Map Location Preview",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(OnyxBlack.copy(alpha = 0.7f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Default.LocationOn, contentDescription = null, tint = GoldPrimary, modifier = Modifier.size(32.dp))
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text("Google Maps • Jaipur Office", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), color = PureWhite)
+                                    Text("Capital High Street, Mahal Road, Jagatpura, Jaipur", style = MaterialTheme.typography.bodySmall, color = GoldMetallic)
+                                }
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        val context = androidx.compose.ui.platform.LocalContext.current
+                        LuxuryGoldButton(
+                            text = "GET DIRECTIONS TO OFFICE",
+                            onClick = {
+                                val address = "Capital High Street, Mahal Road, Jagatpura, Jaipur, Rajasthan 302017"
+                                val gmmIntentUri = android.net.Uri.parse("geo:26.8228,75.8648?q=${android.net.Uri.encode("Mansuri Paints, $address")}")
+                                val mapIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, gmmIntentUri)
+                                try {
+                                    context.startActivity(mapIntent)
+                                } catch (e: Exception) {
+                                    val webIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com/maps/search/?api=1&query=${android.net.Uri.encode(address)}"))
+                                    context.startActivity(webIntent)
+                                }
+                            },
+                            icon = Icons.Default.LocationOn
+                        )
                     }
                 }
 

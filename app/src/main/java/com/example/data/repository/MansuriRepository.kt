@@ -199,11 +199,15 @@ class MansuriRepository(
     private val _currentUser = MutableStateFlow(
         UserProfile(
             name = "Mansuri Client",
-            phone = "+91 98765 43210",
+            phone = "+91 78430 99068",
             email = "mansuriusman498@gmail.com",
-            houseNo = "Flat 402",
-            buildingName = "Golden Heights",
-            street = "Station Road",
+            houseNo = "Flat 102",
+            buildingName = "Capital Residence",
+            street = "Mahal Road, Jagatpura",
+            landmark = "Near Capital High Street",
+            city = "Jaipur",
+            state = "Rajasthan",
+            pincode = "302017",
             isLoggedIn = true,
             isAdmin = false,
             role = "customer"
@@ -461,7 +465,7 @@ class MansuriRepository(
             totalAmount = 22950.0,
             bookingDate = "2026-08-05",
             timeSlot = "10:00 AM - 01:00 PM",
-            address = "Flat 402, Golden Heights, Station Road",
+            address = "Flat 102, Capital Residence, Mahal Road, Jagatpura, Jaipur 302017",
             notes = "Require gold metallic texture on living room wall.",
             status = "Painter Assigned",
             paymentStatus = "Paid via Razorpay",

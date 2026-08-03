@@ -208,7 +208,7 @@ fun SignUpScreen(
                                 nameInput.ifEmpty { "Mansuri Customer" },
                                 if (phoneInput.isNotEmpty()) "+91 $phoneInput" else "+91 9876543210",
                                 emailInput.ifEmpty { "customer@mansuripaints.com" },
-                                addressInput.ifEmpty { "Studio Location, Station Road" }
+                                addressInput.ifEmpty { "Capital High Street, Jagatpura, Jaipur" }
                             )
                         }
                     )

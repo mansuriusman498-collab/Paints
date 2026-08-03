@@ -65,7 +65,7 @@ fun OrderTrackingScreen(
         totalAmount = 22950.0,
         bookingDate = "2026-08-05",
         timeSlot = "10:00 AM - 01:00 PM",
-        address = "Flat 402, Golden Heights, Station Road",
+        address = "Flat 102, Capital Residence, Mahal Road, Jagatpura, Jaipur 302017",
         notes = "Royal metallic sheen finish on living room wall",
         status = "Painter Assigned",
         paymentStatus = "Paid via Razorpay",
