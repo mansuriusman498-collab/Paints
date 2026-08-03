@@ -305,7 +305,7 @@ fun ProfileScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         ProfileLinkItem("My Bookings History", Icons.Default.ListAlt) { onNavigate("my_bookings") }
-                        ProfileLinkItem("Painter Workstation Panel", Icons.Default.FormatPaint) { onNavigate("painter_panel") }
+                        ProfileLinkItem("Employee / Staff Workstation", Icons.Default.FormatPaint) { onNavigate("painter_panel") }
                         ProfileLinkItem("Notifications & Inbox", Icons.Default.Notifications) { onNavigate("notifications") }
                         ProfileLinkItem("Room Photos & Inspection", Icons.Default.AddAPhoto) { onNavigate("upload_photos") }
                         ProfileLinkItem("About Mansuri Paints", Icons.Default.Info) { onNavigate("about_us") }

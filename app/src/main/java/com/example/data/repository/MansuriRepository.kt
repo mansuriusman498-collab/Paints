@@ -2,6 +2,8 @@ package com.example.data.repository
 
 import com.example.data.local.BookingDao
 import com.example.data.local.BookingEntity
+import com.example.data.local.EmployeeDao
+import com.example.data.local.EmployeeEntity
 import com.example.data.local.ReviewDao
 import com.example.data.local.ReviewEntity
 import com.example.data.local.RoomPhotoDao
@@ -30,11 +32,13 @@ import java.util.UUID
 class MansuriRepository(
     private val bookingDao: BookingDao,
     private val roomPhotoDao: RoomPhotoDao,
-    private val reviewDao: ReviewDao
+    private val reviewDao: ReviewDao,
+    private val employeeDao: EmployeeDao
 ) {
     val allBookings: Flow<List<BookingEntity>> = bookingDao.getAllBookings()
     val allPhotos: Flow<List<RoomPhotoEntity>> = roomPhotoDao.getAllPhotos()
     val allReviews: Flow<List<ReviewEntity>> = reviewDao.getAllReviews()
+    val allEmployees: Flow<List<EmployeeEntity>> = employeeDao.getAllEmployees()
 
     private val firestore by lazy {
         try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }
@@ -265,7 +269,11 @@ class MansuriRepository(
         address: String,
         notes: String,
         paymentMethod: String = "Online UPI",
-        paymentStatusOverride: String? = null
+        paymentStatusOverride: String? = null,
+        razorpayPaymentId: String = "",
+        razorpayOrderId: String = "",
+        razorpaySignature: String = "",
+        paymentTimestamp: Long = System.currentTimeMillis()
     ): String {
         val bookingId = "MP-" + (1000..9999).random()
         val calculatedAdvance = totalAmount * (advancePercentage / 100.0)
@@ -311,6 +319,10 @@ class MansuriRepository(
             status = status,
             paymentStatus = payStatus,
             paymentMethod = paymentMethod,
+            razorpayPaymentId = razorpayPaymentId,
+            razorpayOrderId = razorpayOrderId,
+            razorpaySignature = razorpaySignature,
+            paymentTimestamp = paymentTimestamp,
             painterName = "Usman Mansuri & Master Team",
             painterPhone = "+91 78430 99068"
         )
@@ -568,7 +580,106 @@ class MansuriRepository(
         syncUserToFirestore(updated)
     }
 
+    fun loginAsEmployee(employee: EmployeeEntity) {
+        val updated = _currentUser.value.copy(
+            name = employee.name,
+            phone = employee.phone,
+            email = employee.email,
+            isLoggedIn = true,
+            isAdmin = false,
+            employeeId = employee.id,
+            employeeDesignation = employee.designation,
+            role = "employee"
+        )
+        _currentUser.value = updated
+        syncUserToFirestore(updated)
+    }
+
+    suspend fun addEmployee(name: String, designation: String, phone: String, email: String = "", pin: String = "1234"): String {
+        val empId = "emp_" + (100..999).random()
+        val emp = EmployeeEntity(
+            id = empId,
+            name = name,
+            designation = designation,
+            phone = phone,
+            email = email.ifBlank { "staff_$empId@mansuripaints.com" },
+            pin = pin,
+            status = "Active"
+        )
+        employeeDao.insertEmployee(emp)
+        try {
+            val empMap = mapOf(
+                "id" to empId,
+                "name" to name,
+                "designation" to designation,
+                "phone" to phone,
+                "email" to emp.email,
+                "pin" to pin,
+                "status" to "Active"
+            )
+            firestore?.collection("employees")?.document(empId)?.set(empMap)
+        } catch (e: Exception) {
+            // Firestore fallback
+        }
+        return empId
+    }
+
+    suspend fun updateEmployee(employee: EmployeeEntity) {
+        employeeDao.updateEmployee(employee)
+        try {
+            val empMap = mapOf(
+                "id" to employee.id,
+                "name" to employee.name,
+                "designation" to employee.designation,
+                "phone" to employee.phone,
+                "email" to employee.email,
+                "pin" to employee.pin,
+                "status" to employee.status,
+                "totalJobsCompleted" to employee.totalJobsCompleted,
+                "rating" to employee.rating
+            )
+            firestore?.collection("employees")?.document(employee.id)?.set(empMap)
+        } catch (e: Exception) {
+            // Firestore fallback
+        }
+    }
+
+    suspend fun deleteEmployee(employeeId: String) {
+        employeeDao.deleteEmployee(employeeId)
+        try {
+            firestore?.collection("employees")?.document(employeeId)?.delete()
+        } catch (e: Exception) {
+            // Firestore fallback
+        }
+    }
+
+    suspend fun assignEmployeeToBooking(bookingId: String, employeeId: String, employeeName: String, employeePhone: String) {
+        val booking = bookingDao.getBookingById(bookingId)
+        if (booking != null) {
+            val updated = booking.copy(
+                painterId = employeeId,
+                painterName = employeeName,
+                painterPhone = employeePhone,
+                status = "Staff Assigned"
+            )
+            bookingDao.updateBooking(updated)
+            syncBookingToFirestore(updated)
+        }
+    }
+
     suspend fun seedInitialDataIfEmpty() {
+        // Seed initial employees
+        val initialEmployees = listOf(
+            EmployeeEntity("emp_101", "Usman Mansuri", "Master Site Supervisor", "+91 78430 99068", "usman@mansuripaints.com", "1234", "Active", 48, 5.0f, "01 Jan 2022"),
+            EmployeeEntity("emp_102", "Rashid Mansuri", "Waterproofing & Texture Lead", "+91 98290 11223", "rashid@mansuripaints.com", "1234", "Active", 35, 4.9f, "15 Mar 2023"),
+            EmployeeEntity("emp_103", "Farhan Khan", "Royale Interior Painter", "+91 97840 55667", "farhan@mansuripaints.com", "1234", "Active", 22, 4.8f, "10 Aug 2023"),
+            EmployeeEntity("emp_104", "Sameer Shaikh", "Putty & Surface Prep Specialist", "+91 96540 88990", "sameer@mansuripaints.com", "1234", "Active", 19, 4.7f, "01 Nov 2023"),
+            EmployeeEntity("emp_105", "Imran Pathan", "Exterior Painting Specialist", "+91 95430 11224", "imran@mansuripaints.com", "1234", "Active", 28, 4.9f, "05 Jan 2024")
+        )
+        for (e in initialEmployees) {
+            employeeDao.insertEmployee(e)
+        }
+
         // Seed initial sample reviews and sample booking if DB is fresh
         val initialReviews = listOf(
             ReviewEntity("r1", "Aamir Khan", 5.0f, "Mansuri Paints transformed our 3BHK flat with Royal Paint. Outstanding finish and zero mess!", "14 Jul 2026", "Royal Paint"),
@@ -590,9 +701,10 @@ class MansuriRepository(
             timeSlot = "10:00 AM - 01:00 PM",
             address = "Flat 102, Capital Residence, Mahal Road, Jagatpura, Jaipur 302017",
             notes = "Require gold metallic texture on living room wall.",
-            status = "Painter Assigned",
+            status = "Staff Assigned",
             paymentStatus = "Paid via Razorpay",
-            painterName = "Usman Mansuri (Master Painter)",
+            painterId = "emp_101",
+            painterName = "Usman Mansuri (Master Supervisor)",
             painterPhone = "+91 78430 99068"
         )
         bookingDao.insertBooking(sampleBooking)

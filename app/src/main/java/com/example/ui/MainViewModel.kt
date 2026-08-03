@@ -8,10 +8,13 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
 import com.example.data.local.BookingEntity
+import com.example.data.local.EmployeeEntity
 import com.example.data.models.NotificationItem
 import com.example.data.models.PaintCostEstimate
 import com.example.data.models.PaintService
 import com.example.data.models.PaymentConfig
+import com.example.data.models.PendingBookingRequest
+import com.example.data.models.RazorpayPaymentState
 import com.example.data.models.UserProfile
 import com.example.data.repository.MansuriRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,10 +29,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val repository = MansuriRepository(
         bookingDao = database.bookingDao(),
         roomPhotoDao = database.roomPhotoDao(),
-        reviewDao = database.reviewDao()
+        reviewDao = database.reviewDao(),
+        employeeDao = database.employeeDao()
     )
 
     val bookings = repository.allBookings.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList()
+    )
+
+    val employees = repository.allEmployees.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
         emptyList()
@@ -157,6 +167,132 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _enableSiteVisitFee = MutableStateFlow(true)
     val enableSiteVisitFee: StateFlow<Boolean> = _enableSiteVisitFee.asStateFlow()
+
+    // Razorpay Payment Integration
+    private val _razorpayPaymentState = MutableStateFlow<RazorpayPaymentState>(RazorpayPaymentState.Idle)
+    val razorpayPaymentState: StateFlow<RazorpayPaymentState> = _razorpayPaymentState.asStateFlow()
+
+    private var _pendingBookingRequest: PendingBookingRequest? = null
+    val pendingBookingRequest: PendingBookingRequest? get() = _pendingBookingRequest
+
+    fun startRazorpayCheckout(
+        activity: android.app.Activity,
+        request: PendingBookingRequest
+    ) {
+        _pendingBookingRequest = request
+        _razorpayPaymentState.value = RazorpayPaymentState.Launching(request.advanceAmount)
+
+        try {
+            val checkout = com.razorpay.Checkout()
+            val key = paymentConfig.value.razorpayKeyId.ifBlank { "rzp_test_5yXJ9S9a2J3M1x" }
+            checkout.setKeyID(key)
+
+            val options = org.json.JSONObject()
+            options.put("name", "Mansuri Paint Services")
+            options.put("description", "20% Advance Fee for ${request.serviceName}")
+            options.put("currency", "INR")
+            options.put("amount", (request.advanceAmount * 100).toLong())
+
+            val prefill = org.json.JSONObject()
+            val uProfile = userProfile.value
+            prefill.put("email", uProfile.email.ifBlank { "mansuriusman498@gmail.com" })
+            prefill.put("contact", request.phone.ifBlank { uProfile.phone })
+            options.put("prefill", prefill)
+
+            val theme = org.json.JSONObject()
+            theme.put("color", "#D4AF37")
+            options.put("theme", theme)
+
+            val retryObj = org.json.JSONObject()
+            retryObj.put("enabled", true)
+            retryObj.put("max_count", 3)
+            options.put("retry", retryObj)
+
+            checkout.open(activity, options)
+        } catch (e: Exception) {
+            _razorpayPaymentState.value = RazorpayPaymentState.Failed(-1, e.message ?: "Failed to open Razorpay Checkout")
+            _toastMessage.value = "Razorpay Error: ${e.message}"
+        }
+    }
+
+    fun retryRazorpayCheckout(activity: android.app.Activity) {
+        val req = _pendingBookingRequest
+        if (req != null) {
+            startRazorpayCheckout(activity, req)
+        } else {
+            _toastMessage.value = "No pending payment found to retry."
+        }
+    }
+
+    fun onRazorpayPaymentSuccess(
+        paymentId: String,
+        orderId: String,
+        signature: String
+    ) {
+        val req = _pendingBookingRequest
+        if (req != null) {
+            viewModelScope.launch {
+                val bookingId = repository.createBooking(
+                    customerName = req.customerName,
+                    phone = req.phone,
+                    serviceName = req.serviceName,
+                    propertyType = req.propertyType,
+                    bedrooms = req.bedrooms,
+                    hall = req.hall,
+                    kitchen = req.kitchen,
+                    bathroom = req.bathroom,
+                    balcony = req.balcony,
+                    sqFt = req.sqFt,
+                    photosJson = req.photosJson,
+                    bookingType = req.bookingType,
+                    siteVisitFee = req.siteVisitFee,
+                    totalAmount = req.totalAmount,
+                    advancePercentage = req.advancePercentage,
+                    bookingDate = req.bookingDate,
+                    timeSlot = req.timeSlot,
+                    address = req.address,
+                    notes = req.notes,
+                    paymentMethod = "Razorpay Secured (UPI/Card/NetBanking)",
+                    paymentStatusOverride = "Advance Paid",
+                    razorpayPaymentId = paymentId,
+                    razorpayOrderId = orderId,
+                    razorpaySignature = signature,
+                    paymentTimestamp = System.currentTimeMillis()
+                )
+
+                val notifTitle = "Razorpay Payment Successful"
+                val notifMsg = "20% Advance Payment of ₹${req.advanceAmount.toInt()} Received! Razorpay Payment ID: $paymentId. Booking #$bookingId created & pending Admin approval."
+                addNotification(notifTitle, notifMsg)
+                _toastMessage.value = "Payment Successful! Booking #$bookingId Created."
+
+                _razorpayPaymentState.value = RazorpayPaymentState.Success(
+                    bookingId = bookingId,
+                    razorpayPaymentId = paymentId,
+                    orderId = orderId,
+                    amountPaid = req.advanceAmount
+                )
+            }
+        } else {
+            _toastMessage.value = "Payment Received ($paymentId), but no pending booking data was found."
+            _razorpayPaymentState.value = RazorpayPaymentState.Idle
+        }
+    }
+
+    fun onRazorpayPaymentFailed(code: Int, responseMsg: String) {
+        val formattedMsg = if (responseMsg.contains("cancel", ignoreCase = true) || code == com.razorpay.Checkout.PAYMENT_CANCELED) {
+            "Payment Cancelled by User"
+        } else {
+            "Payment Failed ($code): $responseMsg"
+        }
+        _razorpayPaymentState.value = RazorpayPaymentState.Failed(code, formattedMsg)
+        addNotification("Payment Failed or Cancelled", "Razorpay payment was not completed. Booking was NOT created. You can tap 'Retry Payment' to try again.")
+        _toastMessage.value = formattedMsg
+    }
+
+    fun resetRazorpayState() {
+        _razorpayPaymentState.value = RazorpayPaymentState.Idle
+        _pendingBookingRequest = null
+    }
 
     fun updateAdminConfig(advancePct: Double, baseFee: Double, perKmRate: Double, enableFee: Boolean) {
         _advancePercentage.value = advancePct
@@ -425,6 +561,44 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun dismissPdfQuotation() {
         _pdfQuotationModal.value = null
+    }
+
+    fun addEmployee(name: String, designation: String, phone: String, email: String = "", pin: String = "1234") {
+        viewModelScope.launch {
+            val id = repository.addEmployee(name, designation, phone, email, pin)
+            _toastMessage.value = "Employee $name ($designation) added successfully!"
+        }
+    }
+
+    fun updateEmployee(employee: EmployeeEntity) {
+        viewModelScope.launch {
+            repository.updateEmployee(employee)
+            _toastMessage.value = "Employee ${employee.name} updated successfully."
+        }
+    }
+
+    fun deleteEmployee(employeeId: String) {
+        viewModelScope.launch {
+            repository.deleteEmployee(employeeId)
+            _toastMessage.value = "Employee removed from staff roster."
+        }
+    }
+
+    fun assignEmployeeToBooking(bookingId: String, employee: EmployeeEntity) {
+        viewModelScope.launch {
+            repository.assignEmployeeToBooking(bookingId, employee.id, "${employee.name} (${employee.designation})", employee.phone)
+            _toastMessage.value = "Job #$bookingId assigned to ${employee.name}."
+            addNotification(
+                title = "Employee Job Assignment",
+                message = "Job #$bookingId assigned to staff employee ${employee.name} (${employee.phone})."
+            )
+        }
+    }
+
+    fun loginAsEmployee(employee: EmployeeEntity) {
+        repository.loginAsEmployee(employee)
+        _toastMessage.value = "Welcome ${employee.name}! Switched to Staff Workstation."
+        navigateTo("painter_panel")
     }
 
     fun clearToast() {

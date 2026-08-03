@@ -48,3 +48,21 @@ interface ReviewDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertReview(review: ReviewEntity)
 }
+
+@Dao
+interface EmployeeDao {
+    @Query("SELECT * FROM employees ORDER BY name ASC")
+    fun getAllEmployees(): Flow<List<EmployeeEntity>>
+
+    @Query("SELECT * FROM employees WHERE id = :id")
+    suspend fun getEmployeeById(id: String): EmployeeEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEmployee(employee: EmployeeEntity)
+
+    @Update
+    suspend fun updateEmployee(employee: EmployeeEntity)
+
+    @Query("DELETE FROM employees WHERE id = :id")
+    suspend fun deleteEmployee(id: String)
+}

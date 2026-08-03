@@ -98,8 +98,8 @@ fun PainterDashboardScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             MansuriTopAppBar(
-                title = "Painter Workstation",
-                subtitle = "Assigned Jobs • GPS Directions • Work Logs",
+                title = "Mansuri Staff Workstation",
+                subtitle = "Assigned Employee Jobs • Navigation • Daily Logs",
                 onBackClick = onBack,
                 onCallClick = { onCallClick("+917843099068") },
                 onWhatsAppClick = { onWhatsAppClick("+917843099068") }
@@ -119,30 +119,44 @@ fun PainterDashboardScreen(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = GoldContainer)
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(16.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = null,
-                                tint = GoldPrimary,
-                                modifier = Modifier.padding(end = 12.dp)
-                            )
-                            Column {
-                                Text(
-                                    text = "Welcome, $painterName",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = PureWhite
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = GoldPrimary,
+                                    modifier = Modifier.padding(end = 12.dp)
                                 )
-                                Text(
-                                    text = "${assignedJobs.size} Active Job(s) Assigned Today",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = GoldMetallic
-                                )
+                                Column {
+                                    Text(
+                                        text = "Employee: $painterName",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = PureWhite
+                                    )
+                                    Text(
+                                        text = "${assignedJobs.size} Active Job(s) Assigned by Admin",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = GoldMetallic
+                                    )
+                                }
                             }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            HorizontalDivider(color = CardBorderDark)
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text(
+                                text = "🛡️ Company Policy: All customer payments must be made directly to Mansuri Paints Admin via UPI or Razorpay. Employees do not collect payments.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = PureWhite.copy(alpha = 0.9f)
+                            )
                         }
                     }
                 }

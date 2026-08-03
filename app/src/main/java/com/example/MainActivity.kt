@@ -15,8 +15,29 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.data.models.PaintCostEstimate
+import com.example.data.models.RazorpayPaymentState
 import com.example.ui.MainViewModel
+import com.example.ui.components.LuxuryGoldButton
 import com.example.ui.components.MansuriBottomNavigation
 import com.example.ui.components.PdfQuotationModalDialog
 import com.example.ui.components.ToastNotificationBanner
@@ -42,25 +63,49 @@ import com.example.ui.screens.SignUpScreen
 import com.example.ui.screens.SplashScreen
 import com.example.ui.screens.TermsConditionsScreen
 import com.example.ui.screens.UploadPhotosScreen
+import com.example.ui.theme.CardDark
+import com.example.ui.theme.GoldMetallic
+import com.example.ui.theme.GoldPrimary
 import com.example.ui.theme.MansuriPaintsTheme
+import com.example.ui.theme.PureWhite
 
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), com.razorpay.PaymentResultWithDataListener {
+  private var mainViewModel: MainViewModel? = null
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    try {
+      com.razorpay.Checkout.preload(applicationContext)
+    } catch (e: Exception) {
+      // Preload fallback
+    }
     enableEdgeToEdge()
     setContent {
       val viewModel: MainViewModel = viewModel()
+      mainViewModel = viewModel
       val isDarkTheme by viewModel.isDarkTheme.collectAsState()
 
       MansuriPaintsTheme(darkTheme = isDarkTheme) {
-        MansuriAppContent(viewModel = viewModel)
+        MansuriAppContent(viewModel = viewModel, activity = this)
       }
     }
+  }
+
+  override fun onPaymentSuccess(razorpayPaymentId: String?, paymentData: com.razorpay.PaymentData?) {
+    val paymentId = razorpayPaymentId ?: paymentData?.paymentId ?: "pay_${System.currentTimeMillis()}"
+    val orderId = paymentData?.orderId ?: ""
+    val signature = paymentData?.signature ?: ""
+    mainViewModel?.onRazorpayPaymentSuccess(paymentId, orderId, signature)
+  }
+
+  override fun onPaymentError(code: Int, response: String?, paymentData: com.razorpay.PaymentData?) {
+    val msg = response ?: "Payment cancelled or failed"
+    mainViewModel?.onRazorpayPaymentFailed(code, msg)
   }
 }
 
 @Composable
-fun MansuriAppContent(viewModel: MainViewModel) {
+fun MansuriAppContent(viewModel: MainViewModel, activity: ComponentActivity) {
   val context = LocalContext.current
   val activeScreen by viewModel.activeScreen.collectAsState()
   val userProfile by viewModel.userProfile.collectAsState()
@@ -74,6 +119,7 @@ fun MansuriAppContent(viewModel: MainViewModel) {
   val currentEstimate by viewModel.currentEstimate.collectAsState()
   val paymentConfig by viewModel.paymentConfig.collectAsState()
   val isDarkTheme by viewModel.isDarkTheme.collectAsState()
+  val razorpayState by viewModel.razorpayPaymentState.collectAsState()
 
   val showBottomNav = activeScreen in listOf("home", "services", "calculator", "my_bookings", "profile")
 
@@ -188,6 +234,9 @@ fun MansuriAppContent(viewModel: MainViewModel) {
                   viewModel.navigateTo("order_tracking")
                 }
               },
+              onStartRazorpayPayment = { req ->
+                viewModel.startRazorpayCheckout(activity, req)
+              },
               onBack = { viewModel.navigateTo("home") },
               onWhatsAppClick = { viewModel.openWhatsApp(context) },
               onCallClick = { viewModel.makeCall(context) }
@@ -246,6 +295,9 @@ fun MansuriAppContent(viewModel: MainViewModel) {
                     viewModel.navigateTo("order_tracking")
                   }
                 },
+                onStartRazorpayPayment = { req ->
+                  viewModel.startRazorpayCheckout(activity, req)
+                },
                 onBack = { viewModel.navigateTo("booking_details") },
                 onWhatsAppClick = { viewModel.openWhatsApp(context, "UPI Payment inquiry") },
                 onCallClick = { viewModel.makeCall(context) }
@@ -277,8 +329,10 @@ fun MansuriAppContent(viewModel: MainViewModel) {
                 viewModel.navigateTo("login")
               }
             } else {
+              val employees by viewModel.employees.collectAsState()
               AdminDashboardScreen(
                   bookings = bookings,
+                  employees = employees,
                   paymentConfig = paymentConfig,
                   onUpdateStatus = { id, newStatus -> viewModel.updateBookingStatus(id, newStatus) },
                   onDeleteBooking = { id -> viewModel.deleteBooking(id) },
@@ -298,6 +352,21 @@ fun MansuriAppContent(viewModel: MainViewModel) {
                   },
                   onSavePaymentSettings = { upiId, qrUri ->
                     viewModel.savePaymentSettings(upiId, qrUri, context)
+                  },
+                  onAddEmployee = { name, desig, phone, email, pin ->
+                    viewModel.addEmployee(name, desig, phone, email, pin)
+                  },
+                  onUpdateEmployee = { emp ->
+                    viewModel.updateEmployee(emp)
+                  },
+                  onDeleteEmployee = { empId ->
+                    viewModel.deleteEmployee(empId)
+                  },
+                  onAssignEmployeeToBooking = { bId, emp ->
+                    viewModel.assignEmployeeToBooking(bId, emp)
+                  },
+                  onLoginAsEmployee = { emp ->
+                    viewModel.loginAsEmployee(emp)
                   },
                   onBack = { viewModel.navigateTo("profile") },
                   onWhatsAppClick = { phone -> viewModel.openWhatsApp(context, "Hello from Mansuri Admin") },
@@ -376,6 +445,81 @@ fun MansuriAppContent(viewModel: MainViewModel) {
             onDismiss = { viewModel.dismissPdfQuotation() },
             onBookNow = { viewModel.navigateTo("book_painter") }
         )
+      }
+
+      // Razorpay Payment Status Overlay Dialogs
+      when (val state = razorpayState) {
+        is RazorpayPaymentState.Failed -> {
+          AlertDialog(
+              onDismissRequest = { viewModel.resetRazorpayState() },
+              containerColor = CardDark,
+              title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                  Icon(Icons.Default.Error, contentDescription = null, tint = Color(0xFFE53935))
+                  Spacer(modifier = Modifier.width(8.dp))
+                  Text("Payment Failed or Cancelled", color = Color(0xFFE53935), fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                }
+              },
+              text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                  Text(text = state.message, color = PureWhite, style = MaterialTheme.typography.bodyMedium)
+                  Text(text = "• No booking was created.\n• Your account/money is safe.\n• You can retry payment below.", color = PureWhite.copy(alpha = 0.7f), style = MaterialTheme.typography.bodySmall)
+                }
+              },
+              confirmButton = {
+                LuxuryGoldButton(
+                    text = "RETRY PAYMENT",
+                    onClick = {
+                      viewModel.retryRazorpayCheckout(activity)
+                    }
+                )
+              },
+              dismissButton = {
+                TextButton(onClick = { viewModel.resetRazorpayState() }) {
+                  Text("CANCEL", color = PureWhite)
+                }
+              }
+          )
+        }
+
+        is RazorpayPaymentState.Success -> {
+          AlertDialog(
+              onDismissRequest = {
+                viewModel.resetRazorpayState()
+                viewModel.navigateTo("order_tracking")
+              },
+              containerColor = CardDark,
+              title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                  Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CAF50))
+                  Spacer(modifier = Modifier.width(8.dp))
+                  Text("Advance Payment Received!", color = GoldPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                }
+              },
+              text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                  Text(text = "20% Advance Payment of ₹${state.amountPaid.toInt()} Received Successfully via Razorpay!", color = PureWhite, fontWeight = FontWeight.Bold)
+                  Text(text = "Booking ID: #${state.bookingId}", color = GoldMetallic, fontWeight = FontWeight.Bold)
+                  Text(text = "Razorpay Payment ID: ${state.razorpayPaymentId}", color = PureWhite.copy(alpha = 0.8f), fontSize = 12.sp)
+                  if (state.orderId.isNotEmpty()) {
+                    Text(text = "Razorpay Order ID: ${state.orderId}", color = PureWhite.copy(alpha = 0.8f), fontSize = 12.sp)
+                  }
+                  Text(text = "Status: Pending Admin Approval", color = PureWhite.copy(alpha = 0.8f), fontSize = 12.sp)
+                }
+              },
+              confirmButton = {
+                LuxuryGoldButton(
+                    text = "VIEW ORDER TRACKING",
+                    onClick = {
+                      viewModel.resetRazorpayState()
+                      viewModel.navigateTo("order_tracking")
+                    }
+                )
+              }
+          )
+        }
+
+        else -> {}
       }
     }
   }

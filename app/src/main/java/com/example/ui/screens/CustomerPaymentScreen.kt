@@ -73,6 +73,7 @@ fun CustomerPaymentScreen(
     booking: BookingEntity?,
     paymentConfig: PaymentConfig,
     onUploadScreenshot: (bookingId: String, screenshotUri: Uri) -> Unit,
+    onStartRazorpayPayment: ((com.example.data.models.PendingBookingRequest) -> Unit)? = null,
     onBack: () -> Unit,
     onWhatsAppClick: () -> Unit,
     onCallClick: () -> Unit
@@ -143,6 +144,41 @@ fun CustomerPaymentScreen(
                                 text = "Client: ${booking.customerName} (${booking.phone})",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = GoldMetallic
+                            )
+                        }
+
+                        if (onStartRazorpayPayment != null && booking != null) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            val advanceAmt = if (booking.advanceAmount > 0) booking.advanceAmount else (booking.totalAmount * 0.20)
+                            LuxuryGoldButton(
+                                text = "PAY 20% ADVANCE (₹${advanceAmt.toInt()}) VIA RAZORPAY",
+                                onClick = {
+                                    val req = com.example.data.models.PendingBookingRequest(
+                                        customerName = booking.customerName,
+                                        phone = booking.phone,
+                                        serviceName = booking.serviceName,
+                                        propertyType = booking.propertyType,
+                                        bedrooms = booking.bedrooms,
+                                        hall = booking.hall,
+                                        kitchen = booking.kitchen,
+                                        bathroom = booking.bathroom,
+                                        balcony = booking.balcony,
+                                        sqFt = booking.sqFt,
+                                        photosJson = booking.photosJson,
+                                        bookingType = booking.bookingType,
+                                        siteVisitFee = booking.siteVisitFee,
+                                        totalAmount = booking.totalAmount,
+                                        advancePercentage = booking.advancePercentage,
+                                        advanceAmount = advanceAmt,
+                                        bookingDate = booking.bookingDate,
+                                        timeSlot = booking.timeSlot,
+                                        address = booking.address,
+                                        notes = booking.notes,
+                                        paymentMethod = "Razorpay Secured"
+                                    )
+                                    onStartRazorpayPayment(req)
+                                },
+                                icon = Icons.Default.Payment
                             )
                         }
                     }

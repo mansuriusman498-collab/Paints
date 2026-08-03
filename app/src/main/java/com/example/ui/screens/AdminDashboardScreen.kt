@@ -79,6 +79,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.data.local.BookingEntity
+import com.example.data.local.EmployeeEntity
 import com.example.data.models.PaymentConfig
 import com.example.ui.components.LuxuryGoldButton
 import com.example.ui.components.LuxuryOutlinedButton
@@ -94,18 +95,24 @@ import com.example.ui.theme.PureWhite
 @Composable
 fun AdminDashboardScreen(
     bookings: List<BookingEntity>,
+    employees: List<EmployeeEntity> = emptyList(),
     paymentConfig: PaymentConfig = PaymentConfig(),
     onUpdateStatus: (id: String, newStatus: String) -> Unit,
     onDeleteBooking: (id: String) -> Unit = {},
     onGeneratePdf: (BookingEntity) -> Unit = {},
     onSavePaymentSettings: (upiId: String, qrCodeUri: Uri?) -> Unit = { _, _ -> },
+    onAddEmployee: (name: String, designation: String, phone: String, email: String, pin: String) -> Unit = { _, _, _, _, _ -> },
+    onUpdateEmployee: (EmployeeEntity) -> Unit = {},
+    onDeleteEmployee: (String) -> Unit = {},
+    onAssignEmployeeToBooking: (bookingId: String, employee: EmployeeEntity) -> Unit = { _, _ -> },
+    onLoginAsEmployee: (EmployeeEntity) -> Unit = {},
     onBack: () -> Unit,
     onWhatsAppClick: (phone: String) -> Unit,
     onCallClick: () -> Unit
 ) {
     val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Dashboard", "Bookings", "Customers", "Payments", "Payment Settings", "Reports")
+    val tabs = listOf("Dashboard", "Bookings", "Employees & Staff", "Customers", "Payments", "Payment Settings", "Reports")
 
     var searchQuery by remember { mutableStateOf("") }
     var painterModalBooking by remember { mutableStateOf<BookingEntity?>(null) }
@@ -202,7 +209,15 @@ fun AdminDashboardScreen(
                         }
                     )
 
-                    2 -> AdminCustomersTab(
+                    2 -> AdminEmployeesTab(
+                        employees = employees,
+                        onAddEmployee = onAddEmployee,
+                        onUpdateEmployee = onUpdateEmployee,
+                        onDeleteEmployee = onDeleteEmployee,
+                        onLoginAsEmployee = onLoginAsEmployee
+                    )
+
+                    3 -> AdminCustomersTab(
                         bookings = bookings,
                         blockedCustomers = blockedCustomers,
                         onToggleBlock = { phone ->
@@ -215,70 +230,82 @@ fun AdminDashboardScreen(
                         onWhatsApp = { phone -> onWhatsAppClick(phone) }
                     )
 
-                    3 -> AdminPaymentsTab(
+                    4 -> AdminPaymentsTab(
                         bookings = bookings,
                         onUpdatePaymentStatus = { id, status ->
                             onUpdateStatus(id, "Payment Status: $status")
                         }
                     )
 
-                    4 -> AdminPaymentSettingsTab(
+                    5 -> AdminPaymentSettingsTab(
                         paymentConfig = paymentConfig,
                         onSavePaymentSettings = onSavePaymentSettings
                     )
 
-                    5 -> AdminReportsTab(bookings = bookings)
+                    6 -> AdminReportsTab(bookings = bookings)
                 }
             }
         }
 
-        // Assign Painter Dialog
+        // Assign Staff Employee Dialog
         painterModalBooking?.let { booking ->
-            var selectedPainter by remember { mutableStateOf("Usman Mansuri (Master Painter)") }
+            var selectedEmployee by remember { mutableStateOf(employees.firstOrNull() ?: EmployeeEntity("emp_101", "Usman Mansuri", "Master Site Supervisor", "+91 78430 99068")) }
             AlertDialog(
                 onDismissRequest = { painterModalBooking = null },
                 containerColor = CardDark,
-                title = { Text("Assign Painter for #${booking.id}", color = GoldPrimary) },
+                title = { Text("Assign Staff Employee for #${booking.id}", color = GoldPrimary) },
                 text = {
                     Column {
                         Text("Customer: ${booking.customerName}", color = PureWhite)
+                        Text("Service: ${booking.serviceName}", color = GoldMetallic)
                         Text("Address: ${booking.address}", color = PureWhite.copy(alpha = 0.7f), fontSize = 12.sp)
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text("Select Painter:", color = GoldMetallic, fontWeight = FontWeight.Bold)
+                        Text("Select Staff Member:", color = GoldMetallic, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(6.dp))
-                        listOf(
-                            "Usman Mansuri (Master Painter)",
-                            "Rashid Khan (Royal Paint Specialist)",
-                            "Imran Shaikh (Texture & Putty Expert)",
-                            "Suresh Patel (Waterproofing Senior)"
-                        ).forEach { painter ->
+
+                        val staffList = if (employees.isNotEmpty()) employees else listOf(
+                            EmployeeEntity("emp_101", "Usman Mansuri", "Master Site Supervisor", "+91 78430 99068"),
+                            EmployeeEntity("emp_102", "Rashid Mansuri", "Waterproofing & Texture Lead", "+91 98290 11223"),
+                            EmployeeEntity("emp_103", "Farhan Khan", "Royale Interior Painter", "+91 97840 55667"),
+                            EmployeeEntity("emp_104", "Sameer Shaikh", "Putty & Surface Prep Specialist", "+91 96540 88990")
+                        )
+
+                        staffList.forEach { emp ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { selectedPainter = painter }
+                                    .clickable { selectedEmployee = emp }
                                     .padding(vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
                                     Icons.Default.Person,
                                     contentDescription = null,
-                                    tint = if (selectedPainter == painter) GoldPrimary else PureWhite.copy(alpha = 0.5f)
+                                    tint = if (selectedEmployee.id == emp.id) GoldPrimary else PureWhite.copy(alpha = 0.5f)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = painter,
-                                    color = if (selectedPainter == painter) GoldPrimary else PureWhite,
-                                    fontWeight = if (selectedPainter == painter) FontWeight.Bold else FontWeight.Normal
-                                )
+                                Column {
+                                    Text(
+                                        text = "${emp.name} (${emp.designation})",
+                                        color = if (selectedEmployee.id == emp.id) GoldPrimary else PureWhite,
+                                        fontWeight = if (selectedEmployee.id == emp.id) FontWeight.Bold else FontWeight.Normal,
+                                        fontSize = 14.sp
+                                    )
+                                    Text(
+                                        text = "Phone: ${emp.phone} • Status: ${emp.status}",
+                                        color = PureWhite.copy(alpha = 0.6f),
+                                        fontSize = 11.sp
+                                    )
+                                }
                             }
                         }
                     }
                 },
                 confirmButton = {
                     LuxuryGoldButton(
-                        text = "ASSIGN PAINTER",
+                        text = "ASSIGN STAFF MEMBER",
                         onClick = {
-                            onUpdateStatus(booking.id, "Painter Assigned")
+                            onAssignEmployeeToBooking(booking.id, selectedEmployee)
                             painterModalBooking = null
                         }
                     )
@@ -647,7 +674,7 @@ private fun AdminPaymentsTab(
 ) {
     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            Text("Payment Transactions (Razorpay, UPI, Cash)", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = GoldPrimary)
+            Text("Payment Transactions (Razorpay Secured, UPI, Cash)", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = GoldPrimary)
         }
 
         items(bookings) { booking ->
@@ -663,23 +690,35 @@ private fun AdminPaymentsTab(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Order #${booking.id}", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), color = GoldMetallic)
-                        Text(text = "₹${booking.totalAmount.toInt()}", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), color = GoldPrimary)
+                        Text(text = "Order #${booking.id} • ${booking.serviceName}", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), color = GoldMetallic)
+                        Text(text = "Total: ₹${booking.totalAmount.toInt()}", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), color = GoldPrimary)
                     }
 
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(text = "Customer: ${booking.customerName} (${booking.phone})", style = MaterialTheme.typography.bodySmall, color = PureWhite)
-                    Text(text = "Method: ${booking.paymentMethod} • Status: ${booking.paymentStatus}", style = MaterialTheme.typography.labelSmall, color = PureWhite.copy(alpha = 0.7f))
+                    Text(text = "Advance Paid: ₹${booking.advancePaidAmount.toInt()} (${booking.advancePercentage.toInt()}%)", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = Color(0xFF4CAF50))
+                    Text(text = "Method: ${booking.paymentMethod} • Status: ${booking.paymentStatus}", style = MaterialTheme.typography.labelSmall, color = PureWhite.copy(alpha = 0.8f))
+
+                    if (booking.razorpayPaymentId.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(text = "Razorpay Payment ID: ${booking.razorpayPaymentId}", style = MaterialTheme.typography.labelSmall, color = GoldPrimary)
+                    }
+                    if (booking.razorpayOrderId.isNotEmpty()) {
+                        Text(text = "Razorpay Order ID: ${booking.razorpayOrderId}", style = MaterialTheme.typography.labelSmall, color = PureWhite.copy(alpha = 0.6f))
+                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = { onUpdatePaymentStatus(booking.id, "Paid") }) {
-                            Text("Mark Paid", color = Color(0xFF4CAF50))
+                        TextButton(onClick = { onUpdatePaymentStatus(booking.id, "Advance Paid") }) {
+                            Text("Mark Advance Paid", color = Color(0xFF4CAF50))
+                        }
+                        TextButton(onClick = { onUpdatePaymentStatus(booking.id, "Fully Paid") }) {
+                            Text("Mark Fully Paid", color = GoldPrimary)
                         }
                         TextButton(onClick = { onUpdatePaymentStatus(booking.id, "Refunded") }) {
-                            Text("Mark Refunded", color = Color(0xFFE53935))
+                            Text("Refund", color = Color(0xFFE53935))
                         }
                     }
                 }
@@ -878,5 +917,356 @@ private fun AdminPaymentSettingsTab(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun AdminEmployeesTab(
+    employees: List<EmployeeEntity>,
+    onAddEmployee: (name: String, designation: String, phone: String, email: String, pin: String) -> Unit,
+    onUpdateEmployee: (EmployeeEntity) -> Unit,
+    onDeleteEmployee: (String) -> Unit,
+    onLoginAsEmployee: (EmployeeEntity) -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    var showAddDialog by remember { mutableStateOf(false) }
+    var employeeToEdit by remember { mutableStateOf<EmployeeEntity?>(null) }
+    var employeeToDelete by remember { mutableStateOf<EmployeeEntity?>(null) }
+
+    val filteredEmployees = employees.filter {
+        it.name.contains(searchQuery, ignoreCase = true) ||
+        it.designation.contains(searchQuery, ignoreCase = true) ||
+        it.phone.contains(searchQuery, ignoreCase = true)
+    }
+
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, CardBorderDark, RoundedCornerShape(16.dp)),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = CardDark)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Company Employee & Staff Roster",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = GoldPrimary
+                    )
+                    Text(
+                        text = "Mansuri Paints direct staff management. Only company trained staff execute customer jobs.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PureWhite.copy(alpha = 0.7f)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    LuxuryGoldButton(
+                        text = "+ ADD NEW STAFF EMPLOYEE",
+                        onClick = { showAddDialog = true },
+                        icon = Icons.Default.Person
+                    )
+                }
+            }
+        }
+
+        item {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Search employee name, role or phone...", color = PureWhite.copy(alpha = 0.5f)) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = GoldPrimary) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = GoldPrimary,
+                    unfocusedBorderColor = CardBorderDark,
+                    focusedTextColor = PureWhite,
+                    unfocusedTextColor = PureWhite
+                ),
+                shape = RoundedCornerShape(12.dp)
+            )
+        }
+
+        if (filteredEmployees.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = CardDark)
+                ) {
+                    Box(modifier = Modifier.padding(24.dp), contentAlignment = Alignment.Center) {
+                        Text("No employees match search query", color = PureWhite.copy(alpha = 0.7f))
+                    }
+                }
+            }
+        } else {
+            items(filteredEmployees) { emp ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, CardBorderDark, RoundedCornerShape(16.dp)),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = CardDark)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(GoldContainer),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Person, contentDescription = null, tint = GoldPrimary)
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = emp.name,
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = PureWhite
+                                    )
+                                    Text(
+                                        text = emp.designation,
+                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                        color = GoldMetallic
+                                    )
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (emp.status == "Active") Color(0xFF2E7D32) else Color(0xFFC62828))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = emp.status.uppercase(),
+                                    color = PureWhite,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        HorizontalDivider(color = CardBorderDark)
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(text = "Phone: ${emp.phone}", style = MaterialTheme.typography.bodySmall, color = PureWhite)
+                        Text(text = "Email/Emp ID: ${emp.email}", style = MaterialTheme.typography.labelSmall, color = PureWhite.copy(alpha = 0.7f))
+                        Text(text = "Completed Jobs: ${emp.totalJobsCompleted} • Rating: ${emp.rating} ★", style = MaterialTheme.typography.labelSmall, color = GoldPrimary)
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            TextButton(
+                                onClick = { employeeToEdit = emp },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Edit Details", color = GoldPrimary)
+                            }
+
+                            TextButton(
+                                onClick = { onLoginAsEmployee(emp) },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Staff Portal", color = Color(0xFF2196F3))
+                            }
+
+                            IconButton(onClick = { employeeToDelete = emp }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete Employee", tint = Color(0xFFE53935))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Add Employee Modal Dialog
+    if (showAddDialog) {
+        var nameInput by remember { mutableStateOf("") }
+        var designationInput by remember { mutableStateOf("Senior Painter") }
+        var phoneInput by remember { mutableStateOf("") }
+        var emailInput by remember { mutableStateOf("") }
+        var pinInput by remember { mutableStateOf("1234") }
+
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            containerColor = CardDark,
+            title = { Text("Add New Staff Employee", color = GoldPrimary) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = nameInput,
+                        onValueChange = { nameInput = it },
+                        label = { Text("Full Name *", color = PureWhite.copy(alpha = 0.7f)) },
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GoldPrimary, unfocusedBorderColor = CardBorderDark, focusedTextColor = PureWhite, unfocusedTextColor = PureWhite),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = designationInput,
+                        onValueChange = { designationInput = it },
+                        label = { Text("Designation / Role *", color = PureWhite.copy(alpha = 0.7f)) },
+                        placeholder = { Text("e.g. Master Site Supervisor, Waterproofing Expert", color = PureWhite.copy(alpha = 0.5f)) },
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GoldPrimary, unfocusedBorderColor = CardBorderDark, focusedTextColor = PureWhite, unfocusedTextColor = PureWhite),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = phoneInput,
+                        onValueChange = { phoneInput = it },
+                        label = { Text("Phone Number *", color = PureWhite.copy(alpha = 0.7f)) },
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GoldPrimary, unfocusedBorderColor = CardBorderDark, focusedTextColor = PureWhite, unfocusedTextColor = PureWhite),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = emailInput,
+                        onValueChange = { emailInput = it },
+                        label = { Text("Employee Email / Emp ID", color = PureWhite.copy(alpha = 0.7f)) },
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GoldPrimary, unfocusedBorderColor = CardBorderDark, focusedTextColor = PureWhite, unfocusedTextColor = PureWhite),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = pinInput,
+                        onValueChange = { pinInput = it },
+                        label = { Text("Portal PIN (default 1234)", color = PureWhite.copy(alpha = 0.7f)) },
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GoldPrimary, unfocusedBorderColor = CardBorderDark, focusedTextColor = PureWhite, unfocusedTextColor = PureWhite),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                LuxuryGoldButton(
+                    text = "ADD EMPLOYEE",
+                    onClick = {
+                        if (nameInput.isNotBlank() && phoneInput.isNotBlank()) {
+                            onAddEmployee(nameInput, designationInput, phoneInput, emailInput, pinInput)
+                            showAddDialog = false
+                        }
+                    }
+                )
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddDialog = false }) { Text("CANCEL", color = PureWhite) }
+            }
+        )
+    }
+
+    // Edit Employee Modal Dialog
+    employeeToEdit?.let { emp ->
+        var nameInput by remember { mutableStateOf(emp.name) }
+        var designationInput by remember { mutableStateOf(emp.designation) }
+        var phoneInput by remember { mutableStateOf(emp.phone) }
+        var emailInput by remember { mutableStateOf(emp.email) }
+        var statusInput by remember { mutableStateOf(emp.status) }
+
+        AlertDialog(
+            onDismissRequest = { employeeToEdit = null },
+            containerColor = CardDark,
+            title = { Text("Edit Employee Details", color = GoldPrimary) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = nameInput,
+                        onValueChange = { nameInput = it },
+                        label = { Text("Full Name", color = PureWhite.copy(alpha = 0.7f)) },
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GoldPrimary, unfocusedBorderColor = CardBorderDark, focusedTextColor = PureWhite, unfocusedTextColor = PureWhite),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = designationInput,
+                        onValueChange = { designationInput = it },
+                        label = { Text("Designation", color = PureWhite.copy(alpha = 0.7f)) },
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GoldPrimary, unfocusedBorderColor = CardBorderDark, focusedTextColor = PureWhite, unfocusedTextColor = PureWhite),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = phoneInput,
+                        onValueChange = { phoneInput = it },
+                        label = { Text("Phone", color = PureWhite.copy(alpha = 0.7f)) },
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GoldPrimary, unfocusedBorderColor = CardBorderDark, focusedTextColor = PureWhite, unfocusedTextColor = PureWhite),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = emailInput,
+                        onValueChange = { emailInput = it },
+                        label = { Text("Email", color = PureWhite.copy(alpha = 0.7f)) },
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GoldPrimary, unfocusedBorderColor = CardBorderDark, focusedTextColor = PureWhite, unfocusedTextColor = PureWhite),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Text("Status: $statusInput", color = GoldMetallic, fontWeight = FontWeight.Bold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { statusInput = "Active" }) {
+                            Text("Active", color = if (statusInput == "Active") GoldPrimary else PureWhite.copy(alpha = 0.6f))
+                        }
+                        TextButton(onClick = { statusInput = "On Leave" }) {
+                            Text("On Leave", color = if (statusInput == "On Leave") GoldPrimary else PureWhite.copy(alpha = 0.6f))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                LuxuryGoldButton(
+                    text = "SAVE CHANGES",
+                    onClick = {
+                        onUpdateEmployee(
+                            emp.copy(
+                                name = nameInput,
+                                designation = designationInput,
+                                phone = phoneInput,
+                                email = emailInput,
+                                status = statusInput
+                            )
+                        )
+                        employeeToEdit = null
+                    }
+                )
+            },
+            dismissButton = {
+                TextButton(onClick = { employeeToEdit = null }) { Text("CANCEL", color = PureWhite) }
+            }
+        )
+    }
+
+    // Delete Employee Modal Dialog
+    employeeToDelete?.let { emp ->
+        AlertDialog(
+            onDismissRequest = { employeeToDelete = null },
+            containerColor = CardDark,
+            title = { Text("Remove Employee from Staff?", color = Color(0xFFE53935)) },
+            text = { Text("Are you sure you want to remove ${emp.name} (${emp.designation}) from the staff roster?", color = PureWhite) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeleteEmployee(emp.id)
+                        employeeToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935))
+                ) {
+                    Text("REMOVE EMPLOYEE", color = PureWhite)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { employeeToDelete = null }) { Text("CANCEL", color = PureWhite) }
+            }
+        )
     }
 }

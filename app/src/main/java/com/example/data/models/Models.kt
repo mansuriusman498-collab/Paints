@@ -87,7 +87,9 @@ data class UserProfile(
     val isGoogleUser: Boolean = false,
     val isAdmin: Boolean = false,
     val isBlocked: Boolean = false,
-    val role: String = if (isAdmin) "admin" else "customer" // customer, admin, painter
+    val employeeId: String = "",
+    val employeeDesignation: String = "",
+    val role: String = if (isAdmin) "admin" else "customer" // customer, admin, employee
 ) {
     val fullAddress: String
         get() = "$houseNo, $buildingName, $street, $landmark, $city, $state $pincode"
@@ -96,8 +98,48 @@ data class UserProfile(
 data class PaymentConfig(
     val upiId: String = "mansuripaints@upi",
     val qrCodeUrl: String = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=7843099068@upi&pn=Mansuri%20Paints",
+    val razorpayKeyId: String = "rzp_test_5yXJ9S9a2J3M1x",
     val lastUpdated: Long = System.currentTimeMillis()
 )
+
+data class PendingBookingRequest(
+    val customerName: String,
+    val phone: String,
+    val serviceName: String,
+    val propertyType: String = "House",
+    val bedrooms: Int = 2,
+    val hall: Int = 1,
+    val kitchen: Int = 1,
+    val bathroom: Int = 1,
+    val balcony: Int = 1,
+    val sqFt: Double,
+    val photosJson: String = "",
+    val bookingType: String = "Direct Booking",
+    val siteVisitFee: Double = 0.0,
+    val totalAmount: Double,
+    val advancePercentage: Double = 20.0,
+    val advanceAmount: Double,
+    val bookingDate: String,
+    val timeSlot: String,
+    val address: String,
+    val notes: String,
+    val paymentMethod: String = "Razorpay Secured UPI/Card"
+)
+
+sealed class RazorpayPaymentState {
+    object Idle : RazorpayPaymentState()
+    data class Launching(val amount: Double) : RazorpayPaymentState()
+    data class Success(
+        val bookingId: String,
+        val razorpayPaymentId: String,
+        val orderId: String,
+        val amountPaid: Double
+    ) : RazorpayPaymentState()
+    data class Failed(
+        val code: Int,
+        val message: String
+    ) : RazorpayPaymentState()
+}
 
 data class NotificationItem(
     val id: String,

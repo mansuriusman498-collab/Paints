@@ -126,6 +126,7 @@ fun BookPainterScreen(
         paymentMethod: String,
         paymentStatusOverride: String?
     ) -> Unit,
+    onStartRazorpayPayment: (com.example.data.models.PendingBookingRequest) -> Unit = {},
     onBack: () -> Unit,
     onWhatsAppClick: () -> Unit,
     onCallClick: () -> Unit
@@ -848,29 +849,30 @@ fun BookPainterScreen(
                             showAdvancePaymentDialog = false
                             val fullAddr = "$houseNo, $buildingName, $street, $landmark, $city, $state $pincode"
                             val photoJsonStr = selectedPhotoUris.joinToString(",") { it.toString() }
-                            onConfirmBooking(
-                                nameInput,
-                                phoneInput,
-                                serviceName,
-                                selectedPropertyType,
-                                bedroomsCount,
-                                hallCount,
-                                kitchenCount,
-                                bathroomCount,
-                                balconyCount,
-                                parsedSqFt,
-                                photoJsonStr,
-                                "Direct Booking",
-                                0.0,
-                                totalEstimatedPrice,
-                                20.0,
-                                dateInput,
-                                selectedTimeSlot,
-                                fullAddr,
-                                notesInput,
-                                selectedPaymentMethod,
-                                "Advance Paid"
+                            val pendingReq = com.example.data.models.PendingBookingRequest(
+                                customerName = nameInput,
+                                phone = phoneInput,
+                                serviceName = serviceName,
+                                propertyType = selectedPropertyType,
+                                bedrooms = bedroomsCount,
+                                hall = hallCount,
+                                kitchen = kitchenCount,
+                                bathroom = bathroomCount,
+                                balcony = balconyCount,
+                                sqFt = parsedSqFt,
+                                photosJson = photoJsonStr,
+                                bookingType = "Direct Booking",
+                                siteVisitFee = 0.0,
+                                totalAmount = totalEstimatedPrice,
+                                advancePercentage = 20.0,
+                                advanceAmount = advance20Percent,
+                                bookingDate = dateInput,
+                                timeSlot = selectedTimeSlot,
+                                address = fullAddr,
+                                notes = notesInput,
+                                paymentMethod = selectedPaymentMethod
                             )
+                            onStartRazorpayPayment(pendingReq)
                         }
                     )
                 },

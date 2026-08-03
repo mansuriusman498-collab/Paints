@@ -57,6 +57,10 @@ data class BookingEntity(
     val paymentMethod: String = "Online UPI", // "Online UPI", "Razorpay", "Cash at Site", "GPay", "PhonePe", "Cards"
     
     // Staff & Reviews
+    val razorpayPaymentId: String = "",
+    val razorpayOrderId: String = "",
+    val razorpaySignature: String = "",
+    val paymentTimestamp: Long = 0L,
     val painterId: String = "p1",
     val painterName: String = "Mansuri Master Painter",
     val painterPhone: String = "+91 78430 99068",
@@ -64,6 +68,21 @@ data class BookingEntity(
     val afterPhotos: String = "",
     val rating: Float = 0f,
     val reviewComment: String = "",
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "employees")
+data class EmployeeEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val designation: String = "Painter Specialist", // "Senior Painter", "Master Supervisor", "Waterproofing Specialist", "Texture Artist", "Surface Prep & Putty Specialist"
+    val phone: String,
+    val email: String = "staff@mansuripaints.com",
+    val pin: String = "1234",
+    val status: String = "Active", // "Active", "On Job", "On Leave"
+    val totalJobsCompleted: Int = 0,
+    val rating: Float = 4.9f,
+    val joiningDate: String = "01 Jan 2024",
     val createdAt: Long = System.currentTimeMillis()
 )
 
