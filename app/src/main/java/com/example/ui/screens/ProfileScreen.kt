@@ -203,7 +203,7 @@ fun ProfileScreen(
                     }
                 }
 
-                // App Preferences & Admin
+                // App Preferences
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -213,7 +213,7 @@ fun ProfileScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "App Settings & Control",
+                            text = "App Display Preferences",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = GoldMetallic
                         )
@@ -232,7 +232,7 @@ fun ProfileScreen(
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text("Luxury Black & Gold Theme", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = PureWhite)
-                                    Text("High contrast luxury theme", style = MaterialTheme.typography.labelSmall, color = PureWhite.copy(alpha = 0.6f))
+                                    Text("High contrast dark theme", style = MaterialTheme.typography.labelSmall, color = PureWhite.copy(alpha = 0.6f))
                                 }
                             }
                             Switch(
@@ -245,33 +245,43 @@ fun ProfileScreen(
                             )
                         }
 
-                        HorizontalDivider(color = CardBorderDark, modifier = Modifier.padding(vertical = 8.dp))
+                        // Only show Admin Controls if the user is authenticated as an Admin!
+                        if (userProfile.isAdmin) {
+                            HorizontalDivider(color = CardBorderDark, modifier = Modifier.padding(vertical = 8.dp))
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.AdminPanelSettings, contentDescription = null, tint = GoldPrimary)
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text("Admin Mode Access", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = PureWhite)
-                                    Text("Manage customer orders & dispatch", style = MaterialTheme.typography.labelSmall, color = PureWhite.copy(alpha = 0.6f))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.AdminPanelSettings, contentDescription = null, tint = GoldPrimary)
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text("Admin Dashboard Active", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = PureWhite)
+                                        Text("Logged in as ${userProfile.email}", style = MaterialTheme.typography.labelSmall, color = GoldPrimary)
+                                    }
                                 }
-                            }
-                            Switch(
-                                checked = userProfile.isAdmin,
-                                onCheckedChange = { isAdmin ->
-                                    onToggleAdminMode(isAdmin)
-                                    if (isAdmin) onNavigate("admin_dashboard")
-                                },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = OnyxBlack,
-                                    checkedTrackColor = GoldPrimary
+                                Switch(
+                                    checked = userProfile.isAdmin,
+                                    onCheckedChange = { isAdmin ->
+                                        onToggleAdminMode(isAdmin)
+                                        if (isAdmin) onNavigate("admin_dashboard")
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = OnyxBlack,
+                                        checkedTrackColor = GoldPrimary
+                                    )
                                 )
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            LuxuryGoldButton(
+                                text = "OPEN ADMIN DASHBOARD",
+                                onClick = { onNavigate("admin_dashboard") }
                             )
                         }
                     }

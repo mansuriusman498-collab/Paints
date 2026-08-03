@@ -145,17 +145,49 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    // Admin Config
+    private val _advancePercentage = MutableStateFlow(20.0)
+    val advancePercentage: StateFlow<Double> = _advancePercentage.asStateFlow()
+
+    private val _baseSiteVisitFee = MutableStateFlow(200.0)
+    val baseSiteVisitFee: StateFlow<Double> = _baseSiteVisitFee.asStateFlow()
+
+    private val _siteVisitFeePerKm = MutableStateFlow(15.0)
+    val siteVisitFeePerKm: StateFlow<Double> = _siteVisitFeePerKm.asStateFlow()
+
+    private val _enableSiteVisitFee = MutableStateFlow(true)
+    val enableSiteVisitFee: StateFlow<Boolean> = _enableSiteVisitFee.asStateFlow()
+
+    fun updateAdminConfig(advancePct: Double, baseFee: Double, perKmRate: Double, enableFee: Boolean) {
+        _advancePercentage.value = advancePct
+        _baseSiteVisitFee.value = baseFee
+        _siteVisitFeePerKm.value = perKmRate
+        _enableSiteVisitFee.value = enableFee
+        _toastMessage.value = "Admin Settings Updated Successfully!"
+    }
+
     fun createBooking(
         customerName: String,
         phone: String,
         serviceName: String,
+        propertyType: String = "House",
+        bedrooms: Int = 2,
+        hall: Int = 1,
+        kitchen: Int = 1,
+        bathroom: Int = 1,
+        balcony: Int = 1,
         sqFt: Double,
+        photosJson: String = "",
+        bookingType: String = "Direct Booking",
+        siteVisitFee: Double = 200.0,
         totalAmount: Double,
+        advancePct: Double = 20.0,
         bookingDate: String,
         timeSlot: String,
         address: String,
         notes: String,
-        paymentStatus: String,
+        paymentMethod: String = "Online UPI",
+        paymentStatusOverride: String? = null,
         onSuccess: (String) -> Unit
     ) {
         viewModelScope.launch {
@@ -163,20 +195,113 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 customerName = customerName,
                 phone = phone,
                 serviceName = serviceName,
+                propertyType = propertyType,
+                bedrooms = bedrooms,
+                hall = hall,
+                kitchen = kitchen,
+                bathroom = bathroom,
+                balcony = balcony,
                 sqFt = sqFt,
+                photosJson = photosJson,
+                bookingType = bookingType,
+                siteVisitFee = if (_enableSiteVisitFee.value) siteVisitFee else 0.0,
                 totalAmount = totalAmount,
+                advancePercentage = advancePct,
                 bookingDate = bookingDate,
                 timeSlot = timeSlot,
                 address = address,
                 notes = notes,
-                paymentStatus = paymentStatus
+                paymentMethod = paymentMethod,
+                paymentStatusOverride = paymentStatusOverride
             )
+
+            val notifTitle = if (bookingType == "Request Site Visit") "Site Visit Requested" else "Direct Booking Submitted"
+            val notifMsg = if (bookingType == "Request Site Visit") {
+                "Site visit requested for #$bookingId ($propertyType). Admin will assign an engineer shortly."
+            } else {
+                "Order #$bookingId confirmed with 20% advance payment. Pending Admin Approval."
+            }
+
             addNotification(
-                title = "Booking Submitted",
-                message = "Your order #$bookingId for $serviceName is received and under admin review."
+                title = notifTitle,
+                message = notifMsg
             )
-            _toastMessage.value = "Booking #$bookingId Confirmed Successfully!"
+            _toastMessage.value = "$notifTitle (#$bookingId) Successful!"
             onSuccess(bookingId)
+        }
+    }
+
+    fun sendFinalQuotation(bookingId: String, finalAmount: Double, notes: String) {
+        viewModelScope.launch {
+            repository.sendFinalQuotation(bookingId, finalAmount, notes)
+            addNotification(
+                title = "Quotation Sent",
+                message = "Admin sent official quotation of ₹${finalAmount.toInt()} for booking #$bookingId. Please review and accept to proceed."
+            )
+            _toastMessage.value = "Final Quotation of ₹${finalAmount.toInt()} sent to customer!"
+        }
+    }
+
+    fun acceptQuotationAndPayAdvance(bookingId: String, paymentMethod: String, paidAmount: Double) {
+        viewModelScope.launch {
+            repository.acceptQuotationAndPayAdvance(bookingId, paymentMethod, paidAmount)
+            addNotification(
+                title = "Quotation Accepted & Advance Paid",
+                message = "Quotation accepted for booking #$bookingId. Advance payment of ₹${paidAmount.toInt()} received successfully! Work can now start."
+            )
+            _toastMessage.value = "Quotation Accepted & 20% Advance Paid!"
+        }
+    }
+
+    fun rejectQuotation(bookingId: String) {
+        viewModelScope.launch {
+            repository.rejectQuotation(bookingId)
+            addNotification(
+                title = "Quotation Rejected",
+                message = "Quotation for booking #$bookingId was rejected by customer."
+            )
+            _toastMessage.value = "Quotation Rejected."
+        }
+    }
+
+    fun payRemainingBalance(bookingId: String, paymentMethod: String) {
+        viewModelScope.launch {
+            repository.payRemainingBalance(bookingId, paymentMethod)
+            if (paymentMethod == "Cash at Site" || paymentMethod == "Cash") {
+                addNotification(
+                    title = "Cash Payment Selected",
+                    message = "Cash payment at site selected for remaining balance on #$bookingId. Payment status: Cash Payment Pending."
+                )
+                _toastMessage.value = "Cash Payment at site selected. Admin/Painter will collect cash."
+            } else {
+                addNotification(
+                    title = "Remaining Payment Completed",
+                    message = "Remaining balance paid online for booking #$bookingId. Full payment complete! Thank you!"
+                )
+                _toastMessage.value = "Full payment completed online!"
+            }
+        }
+    }
+
+    fun markCashPaymentReceived(bookingId: String) {
+        viewModelScope.launch {
+            repository.markCashPaymentReceived(bookingId)
+            addNotification(
+                title = "Payment Completed",
+                message = "Admin confirmed cash payment received for booking #$bookingId. Order status: Fully Paid."
+            )
+            _toastMessage.value = "Cash Payment Marked as Received!"
+        }
+    }
+
+    fun waiveSiteVisitFee(bookingId: String) {
+        viewModelScope.launch {
+            repository.waiveSiteVisitFee(bookingId)
+            addNotification(
+                title = "Site Visit Fee Waived",
+                message = "Site visit charge waived by Admin for booking #$bookingId."
+            )
+            _toastMessage.value = "Site Visit Charge Waived!"
         }
     }
 

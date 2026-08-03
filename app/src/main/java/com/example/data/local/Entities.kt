@@ -10,6 +10,7 @@ data class BookingEntity(
     val phone: String,
     val email: String = "customer@mansuripaints.com",
     val serviceName: String,
+    val propertyType: String = "House", // House, Flat, Shop, Office, Villa
     val paintType: String = "Royal Paint",
     val bedrooms: Int = 2,
     val hall: Int = 1,
@@ -21,17 +22,41 @@ data class BookingEntity(
     val description: String = "",
     val photosJson: String = "", // Comma-separated list of uploaded photo URIs/paths
     val videoUrl: String = "",
-    val totalAmount: Double,
+    
+    // Booking Type & Site Visit Details
+    val bookingType: String = "Direct Booking", // "Direct Booking" or "Request Site Visit"
+    val siteVisitFee: Double = 200.0,
+    val siteVisitFeePaid: Boolean = false,
+    val isSiteVisitWaived: Boolean = false,
+    val siteVisitDate: String = "",
+    
+    // Financial & Advance Payment Breakdown
+    val totalAmount: Double, // Estimated or final quotation cost
+    val finalQuotationAmount: Double = 0.0, // Set by Admin after site visit
+    val quotationStatus: String = "Not Generated", // "Not Generated", "Sent", "Accepted", "Rejected"
+    val advancePercentage: Double = 20.0, // Default 20%
+    val advanceAmount: Double = 0.0, // Calculated 20% advance expected
+    val advancePaidAmount: Double = 0.0, // Actual advance paid
+    val remainingAmount: Double = 0.0, // Remaining balance (Total - Advance Paid)
+    
+    // Schedules & Address
     val bookingDate: String,
     val timeSlot: String,
     val address: String,
-    val latitude: Double = 23.0225,
-    val longitude: Double = 72.5714,
+    val latitude: Double = 26.8228,
+    val longitude: Double = 75.8648,
     val notes: String = "",
-    val status: String = "Pending", // Pending, Accepted, Painter Assigned, On The Way, Work Started, Work Completed, Cancelled
-    val paymentStatus: String = "Pending", // Pending, Paid, Refunded
-    val paymentMethod: String = "Razorpay", // Razorpay, Cash, UPI
-    val quotationStatus: String = "Generated", // Generated, Sent, Approved
+    
+    // Core Workflow Status
+    val status: String = "Pending Admin Approval", 
+    // Values: "Pending Admin Approval", "Site Visit Requested", "Site Visit Scheduled", "Quotation Sent", "Quotation Accepted", "Quotation Rejected", "Booking Approved", "Work Started", "Work Completed", "Cancelled", "Rejected"
+    
+    val paymentStatus: String = "Pending Advance", 
+    // Values: "Pending Advance", "Advance Paid", "Cash Payment Pending", "Fully Paid"
+    
+    val paymentMethod: String = "Online UPI", // "Online UPI", "Razorpay", "Cash at Site", "GPay", "PhonePe", "Cards"
+    
+    // Staff & Reviews
     val painterId: String = "p1",
     val painterName: String = "Mansuri Master Painter",
     val painterPhone: String = "+91 78430 99068",

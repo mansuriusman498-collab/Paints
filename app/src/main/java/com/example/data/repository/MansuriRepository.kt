@@ -208,7 +208,7 @@ class MansuriRepository(
             city = "Jaipur",
             state = "Rajasthan",
             pincode = "302017",
-            isLoggedIn = true,
+            isLoggedIn = false,
             isAdmin = false,
             role = "customer"
         )
@@ -248,28 +248,69 @@ class MansuriRepository(
         customerName: String,
         phone: String,
         serviceName: String,
+        propertyType: String = "House",
+        bedrooms: Int = 2,
+        hall: Int = 1,
+        kitchen: Int = 1,
+        bathroom: Int = 1,
+        balcony: Int = 1,
         sqFt: Double,
+        photosJson: String = "",
+        bookingType: String = "Direct Booking", // "Direct Booking" or "Request Site Visit"
+        siteVisitFee: Double = 200.0,
         totalAmount: Double,
+        advancePercentage: Double = 20.0,
         bookingDate: String,
         timeSlot: String,
         address: String,
         notes: String,
-        paymentStatus: String
+        paymentMethod: String = "Online UPI",
+        paymentStatusOverride: String? = null
     ): String {
         val bookingId = "MP-" + (1000..9999).random()
+        val calculatedAdvance = totalAmount * (advancePercentage / 100.0)
+        
+        val isDirect = bookingType == "Direct Booking"
+        val status = if (isDirect) "Pending Admin Approval" else "Site Visit Requested"
+        
+        val advancePaid = if (isDirect && (paymentStatusOverride?.contains("Paid") == true || paymentStatusOverride == "Advance Paid")) {
+            calculatedAdvance
+        } else 0.0
+        
+        val payStatus = paymentStatusOverride ?: if (isDirect) "Advance Paid" else "Pending Advance"
+        val remaining = totalAmount - advancePaid
+
         val entity = BookingEntity(
             id = bookingId,
             customerName = customerName.ifEmpty { _currentUser.value.name },
             phone = phone.ifEmpty { _currentUser.value.phone },
+            email = _currentUser.value.email,
             serviceName = serviceName,
+            propertyType = propertyType,
+            bedrooms = bedrooms,
+            hall = hall,
+            kitchen = kitchen,
+            bathroom = bathroom,
+            balcony = balcony,
             sqFt = sqFt,
+            photosJson = photosJson,
+            bookingType = bookingType,
+            siteVisitFee = siteVisitFee,
+            siteVisitFeePaid = !isDirect,
             totalAmount = totalAmount,
+            finalQuotationAmount = if (isDirect) totalAmount else 0.0,
+            quotationStatus = if (isDirect) "Generated" else "Not Generated",
+            advancePercentage = advancePercentage,
+            advanceAmount = calculatedAdvance,
+            advancePaidAmount = advancePaid,
+            remainingAmount = remaining,
             bookingDate = bookingDate,
             timeSlot = timeSlot,
             address = address.ifEmpty { _currentUser.value.fullAddress },
             notes = notes,
-            status = "Requested",
-            paymentStatus = paymentStatus,
+            status = status,
+            paymentStatus = payStatus,
+            paymentMethod = paymentMethod,
             painterName = "Usman Mansuri & Master Team",
             painterPhone = "+91 78430 99068"
         )
@@ -285,6 +326,88 @@ class MansuriRepository(
         } catch (e: Exception) {
             // Firestore fallback
         }
+    }
+
+    suspend fun sendFinalQuotation(bookingId: String, finalAmount: Double, notes: String) {
+        val booking = bookingDao.getBookingById(bookingId) ?: return
+        val advanceAmt = finalAmount * (booking.advancePercentage / 100.0)
+        val updated = booking.copy(
+            finalQuotationAmount = finalAmount,
+            totalAmount = finalAmount,
+            advanceAmount = advanceAmt,
+            remainingAmount = finalAmount - booking.advancePaidAmount,
+            quotationStatus = "Sent",
+            status = "Quotation Sent",
+            notes = notes.ifEmpty { booking.notes }
+        )
+        bookingDao.updateBooking(updated)
+        syncBookingToFirestore(updated)
+    }
+
+    suspend fun acceptQuotationAndPayAdvance(bookingId: String, paymentMethod: String, paidAmount: Double) {
+        val booking = bookingDao.getBookingById(bookingId) ?: return
+        val newAdvancePaid = booking.advancePaidAmount + paidAmount
+        val updated = booking.copy(
+            quotationStatus = "Accepted",
+            status = "Booking Approved",
+            paymentStatus = "Advance Paid",
+            paymentMethod = paymentMethod,
+            advancePaidAmount = newAdvancePaid,
+            remainingAmount = (booking.totalAmount - newAdvancePaid).coerceAtLeast(0.0)
+        )
+        bookingDao.updateBooking(updated)
+        syncBookingToFirestore(updated)
+    }
+
+    suspend fun rejectQuotation(bookingId: String) {
+        val booking = bookingDao.getBookingById(bookingId) ?: return
+        val updated = booking.copy(
+            quotationStatus = "Rejected",
+            status = "Quotation Rejected"
+        )
+        bookingDao.updateBooking(updated)
+        syncBookingToFirestore(updated)
+    }
+
+    suspend fun payRemainingBalance(bookingId: String, paymentMethod: String) {
+        val booking = bookingDao.getBookingById(bookingId) ?: return
+        val isCash = paymentMethod == "Cash at Site" || paymentMethod == "Cash"
+        val updated = if (isCash) {
+            booking.copy(
+                paymentStatus = "Cash Payment Pending",
+                paymentMethod = "Cash at Site"
+            )
+        } else {
+            booking.copy(
+                paymentStatus = "Fully Paid",
+                paymentMethod = paymentMethod,
+                advancePaidAmount = booking.totalAmount,
+                remainingAmount = 0.0
+            )
+        }
+        bookingDao.updateBooking(updated)
+        syncBookingToFirestore(updated)
+    }
+
+    suspend fun markCashPaymentReceived(bookingId: String) {
+        val booking = bookingDao.getBookingById(bookingId) ?: return
+        val updated = booking.copy(
+            paymentStatus = "Fully Paid",
+            advancePaidAmount = booking.totalAmount,
+            remainingAmount = 0.0
+        )
+        bookingDao.updateBooking(updated)
+        syncBookingToFirestore(updated)
+    }
+
+    suspend fun waiveSiteVisitFee(bookingId: String) {
+        val booking = bookingDao.getBookingById(bookingId) ?: return
+        val updated = booking.copy(
+            isSiteVisitWaived = true,
+            siteVisitFee = 0.0
+        )
+        bookingDao.updateBooking(updated)
+        syncBookingToFirestore(updated)
     }
 
     private fun syncBookingToFirestore(booking: BookingEntity) {

@@ -99,7 +99,7 @@ fun MansuriAppContent(viewModel: MainViewModel) {
         when (screen) {
           "splash" -> SplashScreen(
               onSplashComplete = {
-                if (userProfile.isLoggedIn) viewModel.navigateTo("home") else viewModel.navigateTo("login")
+                viewModel.navigateTo("login")
               }
           )
 
@@ -161,9 +161,29 @@ fun MansuriAppContent(viewModel: MainViewModel) {
               services = viewModel.repository.getServices(),
               selectedService = selectedService,
               userProfile = userProfile,
-              onConfirmBooking = { name, phone, serviceName, sqFt, totalAmount, date, timeSlot, address, notes, payStatus ->
+              onConfirmBooking = { name, phone, serviceName, propertyType, bedrooms, hall, kitchen, bathroom, balcony, sqFt, photosJson, bookingType, siteVisitFee, totalAmount, advancePct, date, timeSlot, address, notes, payMethod, payStatus ->
                 viewModel.createBooking(
-                    name, phone, serviceName, sqFt, totalAmount, date, timeSlot, address, notes, payStatus
+                    customerName = name,
+                    phone = phone,
+                    serviceName = serviceName,
+                    propertyType = propertyType,
+                    bedrooms = bedrooms,
+                    hall = hall,
+                    kitchen = kitchen,
+                    bathroom = bathroom,
+                    balcony = balcony,
+                    sqFt = sqFt,
+                    photosJson = photosJson,
+                    bookingType = bookingType,
+                    siteVisitFee = siteVisitFee,
+                    totalAmount = totalAmount,
+                    advancePct = advancePct,
+                    bookingDate = date,
+                    timeSlot = timeSlot,
+                    address = address,
+                    notes = notes,
+                    paymentMethod = payMethod,
+                    paymentStatusOverride = payStatus
                 ) {
                   viewModel.navigateTo("order_tracking")
                 }
